@@ -1,0 +1,41 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables
+.env
+*.env
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Logs and databases
+*.log
+*.sqlite3
+*.db
+
+# IDE settings
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Python packaging
+*.egg
+*.egg-info/
+dist/
+build/
+*.wheel
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# FastAPI / RAG-specific
+*.pkl           # pickled models or embeddings
+*.bin           # model checkpoint binaries
+embeddings/     # folder if storing vector embeddings
+knowledge_hub/  # optional: local knowledge/data uploads

@@ -1,0 +1,131 @@
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from typing import List
+import logging
+import uuid
+from pathlib import Path
+
+from app.models.image_schemas import ImageUploadResponse
+from app.utils.file_handler import get_file_handler
+from app.utils.image_processor import get_image_processor
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/knowledge-hub/ingest/image", tags=["Image Ingestion"])
+
+MAX_IMAGES_PER_UPLOAD = 10
+ALLOWED_EXTENSIONS = {'.png', '.jpg', '.jpeg'}
+
+
+@router.post("/upload", response_model=dict)
+async def upload_images(
+    files: List[UploadFile] = File(...),
+    business_id: str = Form(...)
+):
+    """
+    Upload and process multiple images with smart chunking
+    
+    - **files**: Image files (PNG, JPG, JPEG - max 10 files)
+    - **business_id**: Business identifier
+    
+    Returns list of processed images with chunks and embeddings
+    """
+    try:
+        # Validate number of files
+        if len(files) > MAX_IMAGES_PER_UPLOAD:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Maximum {MAX_IMAGES_PER_UPLOAD} images per upload"
+            )
+        
+        if len(files) == 0:
+            raise HTTPException(status_code=400, detail="No files provided")
+        
+        file_handler = get_file_handler()
+        image_processor = get_image_processor()
+        results = []
+        failed = []
+        
+        for file in files:
+            try:
+                # Validate extension
+                file_ext = Path(file.filename).suffix.lower()
+                if file_ext not in ALLOWED_EXTENSIONS:
+                    failed.append({
+                        "filename": file.filename,
+                        "error": f"Only {', '.join(ALLOWED_EXTENSIONS)} allowed"
+                    })
+                    continue
+                
+                # Validate file
+                is_valid, error_msg = file_handler.validate_file(file)
+                if not is_valid:
+                    failed.append({"filename": file.filename, "error": error_msg})
+                    continue
+                
+                await file.seek(0)
+                
+                # Generate document ID
+                document_id = f"img_{uuid.uuid4().hex[:12]}"
+                
+                # Save file
+                logger.info(f"Saving image: {file.filename}")
+                file_path, file_metadata = await file_handler.save_upload_file(
+                    file=file,
+                    business_id=business_id,
+                    document_id=document_id,
+                    validate=False
+                )
+                
+                # Process image (extract text, create chunks, generate embeddings)
+                logger.info(f"Processing image: {file.filename}")
+                result = await image_processor.process_image(
+                    file_path=file_path,
+                    business_id=business_id,
+                    filename=file.filename,
+                    use_ocr=True
+                )
+                
+                results.append({
+                    "success": True,
+                    "document_id": result["document_id"],
+                    "filename": file.filename,
+                    "image_size": result["image_size"],
+                    "total_chunks": result["total_chunks"],
+                    "extraction_method": result["extraction_method"],
+                    "file_size": file_metadata["file_size"],
+                    "processing_time": result["processing_time"]
+                })
+                
+                logger.info(f"Image processed: {document_id}")
+                
+            except Exception as e:
+                logger.error(f"Error processing {file.filename}: {str(e)}")
+                failed.append({"filename": file.filename, "error": str(e)})
+        
+        # Return results
+        return {
+            "success": len(results) > 0,
+            "processed": results,
+            "failed": failed,
+            "total_processed": len(results),
+            "total_failed": len(failed),
+            "business_id": business_id,
+            "message": f"Processed {len(results)}/{len(files)} images"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading images: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+
+@router.get("/health")
+async def health_check():
+    """Health check"""
+    return {
+        "status": "healthy",
+        "endpoint": "image_ingestion",
+        "max_images_per_upload": MAX_IMAGES_PER_UPLOAD,
+        "supported_formats": list(ALLOWED_EXTENSIONS)
+    }
