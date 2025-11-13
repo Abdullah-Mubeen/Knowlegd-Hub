@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Request
 from typing import Optional
 import logging
 import uuid
@@ -14,16 +14,21 @@ router = APIRouter(prefix="/api/knowledge-hub/ingest/pdf", tags=["PDF Ingestion"
 
 @router.post("/upload", response_model=PDFUploadResponse)
 async def upload_pdf(
-    file: UploadFile = File(...),
-    business_id: str = Form(...)
+    request: Request,
+    file: UploadFile = File(...)
 ):
     """
     Upload and process a PDF document
     
     - **file**: PDF file (max 60MB)
-    - **business_id**: Business identifier
+    
+    Note: workspace_id is automatically extracted from JWT token
     """
     try:
+        # Get workspace_id from authenticated user
+        user = request.state.user
+        workspace_id = user["workspace_id"]
+        
         # Validate PDF
         if not file.filename.lower().endswith('.pdf'):
             raise HTTPException(status_code=400, detail="Only PDF files allowed")
@@ -38,11 +43,11 @@ async def upload_pdf(
         # Generate document ID
         document_id = f"pdf_{uuid.uuid4().hex[:12]}"
         
-        # Save file
-        logger.info(f"Saving PDF: {file.filename}")
+        # Save file with workspace_id
+        logger.info(f"Saving PDF: {file.filename} for workspace: {workspace_id}")
         file_path, file_metadata = await file_handler.save_upload_file(
             file=file,
-            business_id=business_id,
+            business_id=workspace_id,  # Use workspace_id instead of business_id
             document_id=document_id,
             validate=False
         )
@@ -52,14 +57,14 @@ async def upload_pdf(
         pdf_processor = get_pdf_processor()
         result = await pdf_processor.process_pdf(
             file_path=file_path,
-            business_id=business_id,
+            business_id=workspace_id,
             filename=file.filename
         )
         
         return PDFUploadResponse(
             success=True,
             document_id=result["document_id"],
-            business_id=business_id,
+            business_id=workspace_id,
             filename=file.filename,
             total_pages=result["total_pages"],
             total_chunks=result["total_chunks"],

@@ -31,32 +31,34 @@ class ImageProcessor:
         self.pinecone_service = get_pinecone_service()
     
     def extract_text_from_image(self, file_path: str) -> Tuple[str, str, Optional[float]]:
-        """Extract text from image using OCR"""
-        if Image is None or pytesseract is None:
-            raise ImportError("Pillow and pytesseract required")
-        
+        """
+        Extract text using OpenAI Vision instead of Tesseract.
+        """
         try:
             image = Image.open(file_path)
             image_size = f"{image.width}x{image.height}"
-            
-            # Extract text using OCR
-            ocr_text = pytesseract.image_to_string(image)
-            
-            if not ocr_text.strip():
-                logger.warning(f"No text extracted from: {file_path}")
+
+            # Read image bytes
+            with open(file_path, "rb") as f:
+                image_bytes = f.read()
+
+            # Call OpenAI Vision
+            extracted_text = self.openai_service.extract_text_from_image(image_bytes)
+
+            if not extracted_text:
                 return "", image_size, 0.0
-            
-            # Simple confidence scoring
-            word_count = len(ocr_text.split())
-            confidence = min(0.95, word_count / 100)
-            
-            logger.info(f"Extracted {len(ocr_text)} chars from image")
-            return ocr_text.strip(), image_size, confidence
-            
+
+            # Simple confidence scoring heuristic
+            word_count = len(extracted_text.split())
+            confidence = min(0.98, word_count / 120)
+
+            return extracted_text, image_size, confidence
+
         except Exception as e:
-            logger.error(f"Error extracting text: {str(e)}")
+            logger.error(f"Vision OCR extraction failed: {str(e)}")
             raise
-    
+
+
     def create_smart_chunks(
         self,
         text: str,

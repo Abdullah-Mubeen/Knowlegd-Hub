@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Request
 from typing import List
 import logging
 import uuid
@@ -18,18 +18,23 @@ ALLOWED_EXTENSIONS = {'.png', '.jpg', '.jpeg'}
 
 @router.post("/upload", response_model=dict)
 async def upload_images(
-    files: List[UploadFile] = File(...),
-    business_id: str = Form(...)
+    request: Request,
+    files: List[UploadFile] = File(...)
 ):
     """
     Upload and process multiple images with smart chunking
     
     - **files**: Image files (PNG, JPG, JPEG - max 10 files)
-    - **business_id**: Business identifier
+    
+    **Note**: workspace_id is automatically extracted from your JWT token
     
     Returns list of processed images with chunks and embeddings
     """
     try:
+        # Get workspace_id from authenticated user
+        user = request.state.user
+        workspace_id = user["workspace_id"]
+        
         # Validate number of files
         if len(files) > MAX_IMAGES_PER_UPLOAD:
             raise HTTPException(
@@ -68,10 +73,10 @@ async def upload_images(
                 document_id = f"img_{uuid.uuid4().hex[:12]}"
                 
                 # Save file
-                logger.info(f"Saving image: {file.filename}")
+                logger.info(f"Saving image: {file.filename} for workspace: {workspace_id}")
                 file_path, file_metadata = await file_handler.save_upload_file(
                     file=file,
-                    business_id=business_id,
+                    business_id=workspace_id,
                     document_id=document_id,
                     validate=False
                 )
@@ -80,7 +85,7 @@ async def upload_images(
                 logger.info(f"Processing image: {file.filename}")
                 result = await image_processor.process_image(
                     file_path=file_path,
-                    business_id=business_id,
+                    business_id=workspace_id,
                     filename=file.filename,
                     use_ocr=True
                 )
@@ -109,7 +114,7 @@ async def upload_images(
             "failed": failed,
             "total_processed": len(results),
             "total_failed": len(failed),
-            "business_id": business_id,
+            "workspace_id": workspace_id,
             "message": f"Processed {len(results)}/{len(files)} images"
         }
         
