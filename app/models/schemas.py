@@ -17,7 +17,7 @@ class DocumentType(str, Enum):
 class BaseMetadata(BaseModel):
     """Base metadata for all chunks"""
     document_id: str
-    business_id: str
+    workspace_id: str
     document_type: DocumentType
     source_file: str
     upload_date: datetime = Field(default_factory=datetime.utcnow)
@@ -34,14 +34,14 @@ class ChunkData(BaseModel):
 
 class DocumentUploadRequest(BaseModel):
     """Request for document upload"""
-    business_id: str = Field(..., description="Business identifier")
+    workspace_id: str = Field(..., description="Business identifier")
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Additional metadata")
 
 
 class DocumentUploadResponse(BaseModel):
     """Response after document upload"""
     document_id: str
-    business_id: str
+    workspace_id: str
     document_type: DocumentType
     total_chunks: int
     status: str = "success"
@@ -57,7 +57,7 @@ class QnAPair(BaseModel):
 
 class QnAUploadRequest(BaseModel):
     """Request for Q&A upload"""
-    business_id: str
+    workspace_id: str
     qna_pairs: List[QnAPair] = Field(..., min_items=1)
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
@@ -70,7 +70,7 @@ class FAQItem(BaseModel):
 
 class FAQUploadRequest(BaseModel):
     """Request for FAQ upload"""
-    business_id: str
+    workspace_id: str
     category: str
     faqs: List[FAQItem] = Field(..., min_items=1)
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
@@ -78,7 +78,7 @@ class FAQUploadRequest(BaseModel):
 
 class ArticleUploadRequest(BaseModel):
     """Request for article upload"""
-    business_id: str
+    workspace_id: str
     title: str
     content: str = Field(..., min_length=1)
     author: Optional[str] = None
@@ -88,7 +88,7 @@ class ArticleUploadRequest(BaseModel):
 
 class QueryRequest(BaseModel):
     """Request for querying knowledge base"""
-    business_id: str
+    workspace_id: str
     question: str = Field(..., min_length=1)
     top_k: int = Field(default=5, ge=1, le=20)
     filters: Optional[Dict[str, Any]] = None
@@ -105,7 +105,7 @@ class QueryResponse(BaseModel):
     """Response for query"""
     answer: str
     sources: List[SourceReference]
-    business_id: str
+    workspace_id: str
     confidence: Optional[float] = None
 
 
@@ -113,12 +113,12 @@ class DocumentListResponse(BaseModel):
     """Response for document listing"""
     documents: List[Dict[str, Any]]
     total: int
-    business_id: str
+    workspace_id: str
 
 
 class DeleteDocumentResponse(BaseModel):
     """Response for document deletion"""
     document_id: str
-    business_id: str
+    workspace_id: str
     status: str = "deleted"
     message: Optional[str] = None

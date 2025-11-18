@@ -5,7 +5,7 @@ from datetime import datetime
 
 class ImageUploadRequest(BaseModel):
     """Request schema for image upload"""
-    business_id: str = Field(..., description="Business identifier", min_length=1)
+    workspace_id: str = Field(..., description="Business identifier", min_length=1)
     description: Optional[str] = Field(None, description="Image description")
     tags: Optional[List[str]] = Field(default_factory=list, description="Image tags")
     use_ocr: bool = Field(True, description="Whether to use OCR for text extraction")
@@ -15,7 +15,7 @@ class ImageUploadRequest(BaseModel):
 class ImageChunkMetadata(BaseModel):
     """Metadata for a single image chunk"""
     document_id: str
-    business_id: str
+    workspace_id: str
     document_type: str = "image"
     source_file: str
     chunk_index: int
@@ -32,7 +32,7 @@ class ImageUploadResponse(BaseModel):
     """Response schema for image upload"""
     success: bool
     document_id: str
-    business_id: str
+    workspace_id: str
     filename: str
     image_size: str
     total_chunks: int

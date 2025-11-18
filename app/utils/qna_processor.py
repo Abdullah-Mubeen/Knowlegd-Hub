@@ -1,186 +1,141 @@
-from typing import List, Dict, Any
+from typing import Dict, Any, List
 import logging
-from datetime import datetime
-import uuid
 import time
+import uuid
 
-from app.models.qna_schemas import QnAPair
-from app.utils.text_splitter import get_text_chunker, ChunkConfig
+from app.utils.document_processor import get_document_processor
 from app.utils.openai_service import get_openai_service
 from app.utils.pinecone_service import get_pinecone_service
+from app.db import get_db
 
 logger = logging.getLogger(__name__)
 
 
 class QnAProcessor:
-    """Process Q&A pairs with chunking and embeddings"""
+    """Process Q&A pairs and store in MongoDB + Pinecone (no file storage needed)"""
     
     def __init__(self):
-        self.chunker = get_text_chunker(ChunkConfig(
-            chunk_size=600,
-            overlap_pct=0.1
-        ))
+        self.doc_processor = get_document_processor()
         self.openai_service = get_openai_service()
         self.pinecone_service = get_pinecone_service()
-    
-    def create_chunks_from_qna(
-        self,
-        qna_pairs: List[QnAPair],
-        document_id: str,
-        business_id: str
-    ) -> List[Dict[str, Any]]:
-        """Create chunks from Q&A pairs"""
-        chunks = []
-        
-        for idx, qna in enumerate(qna_pairs):
-            # Combine question and answer
-            combined_text = f"Q: {qna.question}\n\nA: {qna.answer}"
-            token_count = self.chunker.count_tokens(combined_text)
-            
-            # If answer is too long, split it
-            if token_count > self.chunker.config.chunk_size:
-                answer_chunks = self.chunker.split_by_sentences(
-                    qna.answer,
-                    chunk_size=self.chunker.config.chunk_size - self.chunker.count_tokens(f"Q: {qna.question}\n\nA (part /): ")
-                )
-                
-                for part_idx, answer_part in enumerate(answer_chunks, start=1):
-                    chunk_text = f"Q: {qna.question}\n\nA (part {part_idx}/{len(answer_chunks)}): {answer_part}"
-                    
-                    chunk_data = {
-                        "id": f"chunk_{uuid.uuid4().hex[:12]}",
-                        "text": chunk_text,
-                        "metadata": {
-                            "document_id": document_id,
-                            "business_id": business_id,
-                            "document_type": "qna",
-                            "source_file": "qna_import",
-                            "chunk_index": len(chunks),
-                            "question": qna.question,
-                            "category": qna.category,
-                            "answer_part": part_idx,
-                            "total_answer_parts": len(answer_chunks),
-                            "upload_date": datetime.utcnow().isoformat()
-                        }
-                    }
-                    chunks.append(chunk_data)
-            else:
-                # Single chunk for Q&A pair
-                chunk_data = {
-                    "id": f"chunk_{uuid.uuid4().hex[:12]}",
-                    "text": combined_text,
-                    "metadata": {
-                        "document_id": document_id,
-                        "business_id": business_id,
-                        "document_type": "qna",
-                        "source_file": "qna_import",
-                        "chunk_index": len(chunks),
-                        "question": qna.question,
-                        "category": qna.category,
-                        "answer_part": 1,
-                        "total_answer_parts": 1,
-                        "upload_date": datetime.utcnow().isoformat()
-                    }
-                }
-                chunks.append(chunk_data)
-        
-        # Update total chunks
-        for chunk in chunks:
-            chunk["metadata"]["total_chunks"] = len(chunks)
-        
-        logger.info(f"Created {len(chunks)} chunks from {len(qna_pairs)} Q&A pairs")
-        return chunks
-    
-    def generate_embeddings_batch(self, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Generate embeddings for chunks"""
-        try:
-            texts = [chunk["text"] for chunk in chunks]
-            embeddings = self.openai_service.generate_embeddings_batch(texts)
-            
-            for chunk, embedding in zip(chunks, embeddings):
-                chunk["embedding"] = embedding
-            
-            logger.info(f"Generated embeddings for {len(chunks)} chunks")
-            return chunks
-            
-        except Exception as e:
-            logger.error(f"Error generating embeddings: {str(e)}")
-            raise
-    
-    def store_chunks_in_pinecone(
-        self,
-        chunks: List[Dict[str, Any]],
-        namespace: str
-    ) -> List[str]:
-        """Store chunks in Pinecone"""
-        try:
-            texts = [chunk["text"] for chunk in chunks]
-            metadatas = [chunk["metadata"] for chunk in chunks]
-            
-            ids = self.pinecone_service.add_documents(
-                texts=texts,
-                metadatas=metadatas,
-                namespace=namespace
-            )
-            
-            logger.info(f"Stored {len(ids)} chunks in Pinecone")
-            return ids
-            
-        except Exception as e:
-            logger.error(f"Error storing in Pinecone: {str(e)}")
-            raise
+        self.db = get_db()
     
     async def process_qna_pairs(
         self,
-        qna_pairs: List[QnAPair],
-        business_id: str,
+        qna_pairs: List[Dict[str, str]],
+        workspace_id: str,
         document_id: str
     ) -> Dict[str, Any]:
         """
-        Complete Q&A processing pipeline:
-        1. Create chunks from Q&A pairs
-        2. Generate embeddings
-        3. Store in Pinecone
+        Process Q&A pairs: create chunks, embed, store in MongoDB + Pinecone
+        
+        Args:
+            qna_pairs: List of Q&A pairs
+            workspace_id: Workspace ID
+            document_id: Document identifier
+            
+        Returns:
+            Processing results
         """
         start_time = time.time()
         
         try:
-            logger.info(f"Starting Q&A processing: {len(qna_pairs)} pairs")
+            logger.info(f"Processing {len(qna_pairs)} Q&A pairs (ID: {document_id})")
             
-            # Step 1: Create chunks
-            chunks = self.create_chunks_from_qna(
+            # 1. Create chunks from Q&A pairs
+            chunks_data = self.doc_processor.process_qna(
                 qna_pairs=qna_pairs,
                 document_id=document_id,
-                business_id=business_id
+                workspace_id=workspace_id
             )
             
-            # Step 2: Generate embeddings
-            chunks = self.generate_embeddings_batch(chunks)
+            logger.info(f"Created {len(chunks_data)} chunks from Q&A pairs")
             
-            # Step 3: Store in Pinecone
-            stored_ids = self.store_chunks_in_pinecone(
-                chunks=chunks,
-                namespace=business_id
+            # 2. Generate embeddings for all chunks
+            texts = [chunk["text"] for chunk in chunks_data]
+            embeddings = self.openai_service.generate_embeddings_batch(texts)
+            
+            logger.info(f"Generated {len(embeddings)} embeddings")
+            
+            # 3. Prepare metadata for Pinecone
+            metadatas = [chunk["metadata"] for chunk in chunks_data]
+            
+            # 4. Store vectors in Pinecone
+            pinecone_ids = self.pinecone_service.add_documents(
+                texts=texts,
+                metadatas=metadatas,
+                namespace=workspace_id
             )
+            
+            logger.info(f"Stored {len(pinecone_ids)} vectors in Pinecone")
+            
+            # 5. Create document record in MongoDB (NO file storage for Q&A)
+            document_record = self.db.create_document(
+                document_id=document_id,
+                workspace_id=workspace_id,
+                document_type="qna",
+                filename="qna_import.json",  # Virtual filename
+                file_path=f"virtual://qna/{document_id}",  # Virtual path (no actual file)
+                file_size=sum(len(pair.get("question", "") + pair.get("answer", "")) for pair in qna_pairs),
+                total_chunks=len(chunks_data),
+                file_metadata={
+                    "source": "api_upload",
+                    "total_pairs": len(qna_pairs),
+                    "categories": list(set(pair.get("category", "General") for pair in qna_pairs))
+                },
+                processing_metadata={
+                    "extraction_method": "direct_input",
+                    "format": "qna_pairs"
+                }
+            )
+            
+            logger.info(f"Created Q&A document record in MongoDB")
+            
+            # 6. Store chunks in MongoDB
+            mongo_chunks = []
+            for i, chunk_data in enumerate(chunks_data):
+                mongo_chunk = {
+                    "chunk_id": chunk_data["id"],
+                    "document_id": document_id,
+                    "workspace_id": workspace_id,
+                    "text": chunk_data["text"],
+                    "pinecone_id": pinecone_ids[i],
+                    "metadata": chunk_data["metadata"]
+                }
+                mongo_chunks.append(mongo_chunk)
+            
+            self.db.create_chunks_batch(mongo_chunks)
+            
+            logger.info(f"Stored {len(mongo_chunks)} chunks in MongoDB")
+            
+            # 7. Update user statistics
+            user = self.db.get_user_by_workspace(workspace_id)
+            if user:
+                self.db.update_user_stats(
+                    user_id=user["user_id"],
+                    increment_documents=1,
+                    increment_chunks=len(chunks_data)
+                )
             
             processing_time = time.time() - start_time
             
-            result = {
+            return {
                 "document_id": document_id,
-                "business_id": business_id,
-                "total_chunks": len(chunks),
-                "stored_ids": stored_ids,
-                "processing_time": processing_time
+                "total_chunks": len(chunks_data),
+                "processing_time": round(processing_time, 2)
             }
             
-            logger.info(f"Q&A processing completed in {processing_time:.2f}s")
-            return result
-            
         except Exception as e:
-            logger.error(f"Error processing Q&A: {str(e)}")
+            logger.error(f"Error processing Q&A pairs: {str(e)}")
             raise
 
 
+# Singleton instance
+_qna_processor = None
+
 def get_qna_processor() -> QnAProcessor:
-    """Get QnAProcessor instance"""
-    return QnAProcessor()
+    """Get or create QnAProcessor singleton"""
+    global _qna_processor
+    if _qna_processor is None:
+        _qna_processor = QnAProcessor()
+    return _qna_processor

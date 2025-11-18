@@ -4,7 +4,7 @@ from fastapi.security import HTTPBearer
 from fastapi.openapi.utils import get_openapi
 import logging
 
-from app.routes import faq_ingestion, pdf_ingestion, image_ingestion, qna_ingestion, auth_routes
+from app.routes import faq_ingestion, pdf_ingestion, image_ingestion, qna_ingestion, auth_routes, rag_router
 from app.middleware.auth import AuthMiddleware
 from app.config import get_settings
 
@@ -43,6 +43,7 @@ app.include_router(pdf_ingestion.router)
 app.include_router(image_ingestion.router)
 app.include_router(qna_ingestion.router)
 app.include_router(faq_ingestion.router)
+app.include_router(rag_router.router)
 
 
 def custom_openapi():

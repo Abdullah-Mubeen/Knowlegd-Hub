@@ -96,7 +96,7 @@ class OpenAIService:
             Generated answer
         """
         try:
-            from langchain.schema import SystemMessage, HumanMessage
+            from langchain_core.messages import SystemMessage, HumanMessage
             
             messages = []
             if system_message:

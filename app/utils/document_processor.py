@@ -34,7 +34,7 @@ class DocumentProcessor:
     def _build_base_metadata(
         self,
         document_id: str,
-        business_id: str,
+        workspace_id: str,
         document_type: str,
         source_file: str,
         **kwargs
@@ -42,7 +42,7 @@ class DocumentProcessor:
         """Build base metadata for chunks"""
         return {
             "document_id": document_id,
-            "business_id": business_id,
+            "workspace_id": workspace_id,
             "document_type": document_type,
             "source_file": source_file,
             "upload_date": datetime.utcnow().isoformat(),
@@ -53,7 +53,7 @@ class DocumentProcessor:
         self,
         file_path: str,
         document_id: str,
-        business_id: str,
+        workspace_id: str,
         **metadata_kwargs
     ) -> List[Dict[str, Any]]:
         """
@@ -62,7 +62,7 @@ class DocumentProcessor:
         Args:
             file_path: Path to PDF file
             document_id: Unique document identifier
-            business_id: Business identifier
+            workspace_id: Business identifier
             **metadata_kwargs: Additional metadata
             
         Returns:
@@ -89,7 +89,7 @@ class DocumentProcessor:
                 for chunk_text in page_chunks:
                     base_metadata = self._build_base_metadata(
                         document_id=document_id,
-                        business_id=business_id,
+                        workspace_id=workspace_id,
                         document_type="pdf",
                         source_file=Path(file_path).name,
                         **metadata_kwargs
@@ -123,7 +123,7 @@ class DocumentProcessor:
         self,
         file_path: str,
         document_id: str,
-        business_id: str,
+        workspace_id: str,
         use_ocr: bool = True,
         **metadata_kwargs
     ) -> List[Dict[str, Any]]:
@@ -133,7 +133,7 @@ class DocumentProcessor:
         Args:
             file_path: Path to image file
             document_id: Unique document identifier
-            business_id: Business identifier
+            workspace_id: Business identifier
             use_ocr: Whether to use OCR
             **metadata_kwargs: Additional metadata
             
@@ -163,7 +163,7 @@ class DocumentProcessor:
                 for idx, chunk_text in enumerate(text_chunks):
                     base_metadata = self._build_base_metadata(
                         document_id=document_id,
-                        business_id=business_id,
+                        workspace_id=workspace_id,
                         document_type="image",
                         source_file=Path(file_path).name,
                         **metadata_kwargs
@@ -188,7 +188,7 @@ class DocumentProcessor:
                 # Store image metadata only (for future Vision API processing)
                 base_metadata = self._build_base_metadata(
                     document_id=document_id,
-                    business_id=business_id,
+                    workspace_id=workspace_id,
                     document_type="image",
                     source_file=Path(file_path).name,
                     **metadata_kwargs
@@ -217,7 +217,7 @@ class DocumentProcessor:
         self,
         text: str,
         document_id: str,
-        business_id: str,
+        workspace_id: str,
         document_type: str = "text",
         source_file: str = "text_input",
         **metadata_kwargs
@@ -228,7 +228,7 @@ class DocumentProcessor:
         Args:
             text: Input text
             document_id: Unique document identifier
-            business_id: Business identifier
+            workspace_id: Business identifier
             document_type: Type of document
             source_file: Source identifier
             **metadata_kwargs: Additional metadata
@@ -243,7 +243,7 @@ class DocumentProcessor:
             for idx, chunk_text in enumerate(text_chunks):
                 base_metadata = self._build_base_metadata(
                     document_id=document_id,
-                    business_id=business_id,
+                    workspace_id=workspace_id,
                     document_type=document_type,
                     source_file=source_file,
                     **metadata_kwargs
@@ -271,7 +271,7 @@ class DocumentProcessor:
         self,
         qna_pairs: List[Dict[str, str]],
         document_id: str,
-        business_id: str,
+        workspace_id: str,
         **metadata_kwargs
     ) -> List[Dict[str, Any]]:
         """
@@ -280,7 +280,7 @@ class DocumentProcessor:
         Args:
             qna_pairs: List of {"question": "...", "answer": "..."}
             document_id: Unique document identifier
-            business_id: Business identifier
+            workspace_id: Business identifier
             **metadata_kwargs: Additional metadata
             
         Returns:
@@ -315,7 +315,7 @@ class DocumentProcessor:
                         
                         base_metadata = self._build_base_metadata(
                             document_id=document_id,
-                            business_id=business_id,
+                            workspace_id=workspace_id,
                             document_type="qna",
                             source_file="qna_import",
                             **metadata_kwargs
@@ -338,7 +338,7 @@ class DocumentProcessor:
                     # Single chunk for Q&A pair
                     base_metadata = self._build_base_metadata(
                         document_id=document_id,
-                        business_id=business_id,
+                        workspace_id=workspace_id,
                         document_type="qna",
                         source_file="qna_import",
                         **metadata_kwargs

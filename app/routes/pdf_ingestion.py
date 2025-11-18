@@ -47,7 +47,7 @@ async def upload_pdf(
         logger.info(f"Saving PDF: {file.filename} for workspace: {workspace_id}")
         file_path, file_metadata = await file_handler.save_upload_file(
             file=file,
-            business_id=workspace_id,  # Use workspace_id instead of business_id
+            workspace_id=workspace_id,  # Use workspace_id instead of workspace_id
             document_id=document_id,
             validate=False
         )
@@ -57,14 +57,14 @@ async def upload_pdf(
         pdf_processor = get_pdf_processor()
         result = await pdf_processor.process_pdf(
             file_path=file_path,
-            business_id=workspace_id,
+            workspace_id=workspace_id,
             filename=file.filename
         )
         
         return PDFUploadResponse(
             success=True,
             document_id=result["document_id"],
-            business_id=workspace_id,
+            workspace_id=workspace_id,
             filename=file.filename,
             total_pages=result["total_pages"],
             total_chunks=result["total_chunks"],

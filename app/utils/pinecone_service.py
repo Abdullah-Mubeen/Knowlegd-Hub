@@ -87,7 +87,7 @@ class PineconeService:
         Args:
             texts: List of text chunks
             metadatas: List of metadata dicts for each chunk
-            namespace: Optional namespace (use business_id)
+            namespace: Optional namespace (use workspace_id)
             batch_size: Batch size for uploads
             
         Returns:

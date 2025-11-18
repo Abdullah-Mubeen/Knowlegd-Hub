@@ -63,7 +63,7 @@ class ImageProcessor:
         self,
         text: str,
         document_id: str,
-        business_id: str,
+        workspace_id: str,
         source_file: str,
         image_size: str,
         confidence_score: Optional[float] = None
@@ -77,7 +77,7 @@ class ImageProcessor:
                 "text": f"Image: {source_file}",
                 "metadata": {
                     "document_id": document_id,
-                    "business_id": business_id,
+                    "workspace_id": workspace_id,
                     "document_type": "image",
                     "source_file": source_file,
                     "chunk_index": 0,
@@ -99,7 +99,7 @@ class ImageProcessor:
                 "text": chunk_text,
                 "metadata": {
                     "document_id": document_id,
-                    "business_id": business_id,
+                    "workspace_id": workspace_id,
                     "document_type": "image",
                     "source_file": source_file,
                     "chunk_index": idx,
@@ -157,7 +157,7 @@ class ImageProcessor:
     async def process_image(
         self,
         file_path: str,
-        business_id: str,
+        workspace_id: str,
         filename: str,
         use_ocr: bool = True
     ) -> Dict[str, Any]:
@@ -182,7 +182,7 @@ class ImageProcessor:
             chunks = self.create_smart_chunks(
                 text=extracted_text,
                 document_id=document_id,
-                business_id=business_id,
+                workspace_id=workspace_id,
                 source_file=filename,
                 image_size=image_size,
                 confidence_score=confidence
@@ -194,14 +194,14 @@ class ImageProcessor:
             # Step 4: Store in Pinecone
             stored_ids = self.store_chunks_in_pinecone(
                 chunks=chunks,
-                namespace=business_id
+                namespace=workspace_id
             )
             
             processing_time = time.time() - start_time
             
             result = {
                 "document_id": document_id,
-                "business_id": business_id,
+                "workspace_id": workspace_id,
                 "filename": filename,
                 "image_size": image_size,
                 "extraction_method": extraction_method,

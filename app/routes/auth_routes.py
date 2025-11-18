@@ -8,6 +8,8 @@ import uuid
 import logging
 import os
 
+from app.db import get_db
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -16,9 +18,6 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
-
-# In-memory user storage (replace with database in production)
-users_db = {}
 
 
 class UserRegister(BaseModel):
@@ -79,6 +78,8 @@ async def register(user_data: UserRegister):
     Returns JWT token with workspace_id for authentication
     """
     try:
+        db = get_db()
+        
         # Validate password strength
         if len(user_data.password) < 8:
             raise HTTPException(
@@ -87,7 +88,8 @@ async def register(user_data: UserRegister):
             )
         
         # Check if user already exists
-        if user_data.email in users_db:
+        existing_user = db.get_user_by_email(user_data.email)
+        if existing_user:
             raise HTTPException(
                 status_code=400,
                 detail="Email already registered"
@@ -100,16 +102,15 @@ async def register(user_data: UserRegister):
         # Hash password
         hashed_password = hash_password(user_data.password)
         
-        # Store user (in production, use a database)
-        users_db[user_data.email] = {
-            "user_id": user_id,
-            "email": user_data.email,
-            "password": hashed_password,
-            "workspace_id": workspace_id,
-            "name": user_data.name,
-            "company_name": user_data.company_name,
-            "created_at": datetime.utcnow().isoformat()
-        }
+        # Store user in MongoDB
+        db.create_user(
+            user_id=user_id,
+            email=user_data.email,
+            hashed_password=hashed_password,
+            workspace_id=workspace_id,
+            name=user_data.name,
+            company_name=user_data.company_name
+        )
         
         # Create JWT token
         token_data = {
@@ -149,8 +150,10 @@ async def login(credentials: UserLogin):
     Returns JWT token for authentication
     """
     try:
+        db = get_db()
+        
         # Check if user exists
-        user = users_db.get(credentials.email)
+        user = db.get_user_by_email(credentials.email)
         
         if not user:
             raise HTTPException(
@@ -208,8 +211,18 @@ async def get_current_user():
 @router.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "endpoint": "authentication",
-        "total_users": len(users_db)
-    }
+    try:
+        db = get_db()
+        db_health = db.health_check()
+        
+        return {
+            "status": "healthy",
+            "endpoint": "authentication",
+            "database": db_health
+        }
+    except Exception as e:
+        return {
+            "status": "degraded",
+            "endpoint": "authentication",
+            "error": str(e)
+        }

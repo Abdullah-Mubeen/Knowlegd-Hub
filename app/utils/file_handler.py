@@ -69,18 +69,18 @@ class FileHandler:
         """Generate SHA256 hash of file content"""
         return hashlib.sha256(file_content).hexdigest()[:16]
     
-    def _get_storage_path(self, business_id: str, file_type: str) -> Path:
+    def _get_storage_path(self, workspace_id: str, file_type: str) -> Path:
         """
         Get storage path for business and file type
         
         Args:
-            business_id: Business identifier
+            workspace_id: Business identifier
             file_type: Type of file (pdf, images, documents)
             
         Returns:
             Path to storage directory
         """
-        storage_path = self.uploads_dir / file_type / business_id
+        storage_path = self.uploads_dir / file_type / workspace_id
         storage_path.mkdir(parents=True, exist_ok=True)
         return storage_path
     
@@ -126,7 +126,7 @@ class FileHandler:
     async def save_upload_file(
         self,
         file: UploadFile,
-        business_id: str,
+        workspace_id: str,
         document_id: str,
         validate: bool = True
     ) -> Tuple[str, Dict[str, Any]]:
@@ -135,7 +135,7 @@ class FileHandler:
         
         Args:
             file: Uploaded file
-            business_id: Business identifier
+            workspace_id: Business identifier
             document_id: Document identifier
             validate: Whether to validate file
             
@@ -170,7 +170,7 @@ class FileHandler:
                 file_type = "documents"
             
             # Get storage path
-            storage_path = self._get_storage_path(business_id, file_type)
+            storage_path = self._get_storage_path(workspace_id, file_type)
             
             # Generate unique filename
             file_hash = self._get_file_hash(content)
@@ -262,12 +262,12 @@ class FileHandler:
             logger.error(f"Error deleting file: {str(e)}")
             return False
     
-    def delete_business_files(self, business_id: str) -> int:
+    def delete_business_files(self, workspace_id: str) -> int:
         """
         Delete all files for a business
         
         Args:
-            business_id: Business identifier
+            workspace_id: Business identifier
             
         Returns:
             Number of files deleted
@@ -276,7 +276,7 @@ class FileHandler:
         
         try:
             for file_type in ["pdf", "images", "documents"]:
-                business_dir = self.uploads_dir / file_type / business_id
+                business_dir = self.uploads_dir / file_type / workspace_id
                 
                 if business_dir.exists():
                     # Delete all files in directory
@@ -289,7 +289,7 @@ class FileHandler:
                     business_dir.rmdir()
                     logger.info(f"Deleted directory: {business_dir}")
             
-            logger.info(f"Deleted {deleted_count} files for business: {business_id}")
+            logger.info(f"Deleted {deleted_count} files for business: {workspace_id}")
             return deleted_count
             
         except Exception as e:
@@ -362,14 +362,14 @@ class FileHandler:
     
     def list_business_files(
         self,
-        business_id: str,
+        workspace_id: str,
         file_type: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         List all files for a business
         
         Args:
-            business_id: Business identifier
+            workspace_id: Business identifier
             file_type: Optional filter by file type (pdf, images, documents)
             
         Returns:
@@ -381,7 +381,7 @@ class FileHandler:
         
         try:
             for ftype in file_types:
-                business_dir = self.uploads_dir / ftype / business_id
+                business_dir = self.uploads_dir / ftype / workspace_id
                 
                 if business_dir.exists():
                     for file_path in business_dir.iterdir():
@@ -391,7 +391,7 @@ class FileHandler:
                                 file_info["file_type"] = ftype
                                 files.append(file_info)
             
-            logger.info(f"Found {len(files)} files for business: {business_id}")
+            logger.info(f"Found {len(files)} files for business: {workspace_id}")
             return files
             
         except Exception as e:

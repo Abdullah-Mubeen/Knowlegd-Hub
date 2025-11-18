@@ -41,7 +41,7 @@ class FAQItem(BaseModel):
 
 class FAQUploadRequest(BaseModel):
     """Request for FAQ upload with validation"""
-    business_id: str = Field(
+    workspace_id: str = Field(
         ...,
         min_length=1,
         max_length=255,
@@ -60,16 +60,16 @@ class FAQUploadRequest(BaseModel):
         description="List of FAQ items (max 1000 per request)"
     )
     
-    @validator('business_id', 'category')
+    @validator('workspace_id', 'category')
     def strip_fields(cls, v):
-        """Strip whitespace from business_id and category"""
+        """Strip whitespace from workspace_id and category"""
         if isinstance(v, str):
             return v.strip()
         return v
     
     class Config:
         example = {
-            "business_id": "company_123",
+            "workspace_id": "company_123",
             "category": "Billing",
             "faq_items": [
                 {
@@ -88,7 +88,7 @@ class FAQUploadResponse(BaseModel):
     """Response for FAQ upload"""
     success: bool = Field(description="Operation success status")
     document_id: str = Field(description="Unique document identifier")
-    business_id: str = Field(description="Business identifier")
+    workspace_id: str = Field(description="Business identifier")
     category: str = Field(description="FAQ category")
     total_items: int = Field(description="Total FAQ items processed")
     total_chunks: int = Field(description="Total chunks created from FAQ items")
@@ -99,7 +99,7 @@ class FAQUploadResponse(BaseModel):
         example = {
             "success": True,
             "document_id": "faq_xyz789uvw012",
-            "business_id": "company_123",
+            "workspace_id": "company_123",
             "category": "Billing",
             "total_items": 2,
             "total_chunks": 5,
@@ -113,7 +113,7 @@ class FAQChunk(BaseModel):
     id: str
     text: str
     document_id: str
-    business_id: str
+    workspace_id: str
     category: str
     question: str
     chunk_index: int

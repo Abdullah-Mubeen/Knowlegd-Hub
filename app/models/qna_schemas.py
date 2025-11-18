@@ -51,7 +51,7 @@ class QnAPair(BaseModel):
 
 class QnAUploadRequest(BaseModel):
     """Request for Q&A upload with validation"""
-    business_id: str = Field(
+    workspace_id: str = Field(
         ...,
         min_length=1,
         max_length=255,
@@ -64,16 +64,16 @@ class QnAUploadRequest(BaseModel):
         description="List of Q&A pairs (max 1000 per request)"
     )
     
-    @validator('business_id')
-    def strip_business_id(cls, v):
-        """Strip whitespace from business_id"""
+    @validator('workspace_id')
+    def strip_workspace_id(cls, v):
+        """Strip whitespace from workspace_id"""
         if isinstance(v, str):
             return v.strip()
         return v
     
     class Config:
         example = {
-            "business_id": "company_123",
+            "workspace_id": "company_123",
             "qna_pairs": [
                 {
                     "question": "What is your product?",
@@ -93,7 +93,7 @@ class QnAUploadResponse(BaseModel):
     """Response for Q&A upload"""
     success: bool = Field(description="Operation success status")
     document_id: str = Field(description="Unique document identifier")
-    business_id: str = Field(description="Business identifier")
+    workspace_id: str = Field(description="Business identifier")
     total_pairs: int = Field(description="Total Q&A pairs processed")
     total_chunks: int = Field(description="Total chunks created from Q&A pairs")
     message: str = Field(description="Operation message")
@@ -103,7 +103,7 @@ class QnAUploadResponse(BaseModel):
         example = {
             "success": True,
             "document_id": "qna_abc123def456",
-            "business_id": "company_123",
+            "workspace_id": "company_123",
             "total_pairs": 2,
             "total_chunks": 5,
             "message": "Q&A processed successfully: 5 chunks created",
@@ -116,7 +116,7 @@ class QnAChunk(BaseModel):
     id: str
     text: str
     document_id: str
-    business_id: str
+    workspace_id: str
     question: str
     category: str
     chunk_index: int

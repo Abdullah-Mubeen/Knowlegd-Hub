@@ -1,204 +1,147 @@
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Dict, Any
 import logging
-from pathlib import Path
-from datetime import datetime
-import uuid
 import time
 
-try:
-    from PyPDF2 import PdfReader
-except ImportError:
-    PdfReader = None
-
-from app.utils.text_splitter import get_text_chunker, ChunkConfig
+from app.utils.document_processor import get_document_processor
 from app.utils.openai_service import get_openai_service
 from app.utils.pinecone_service import get_pinecone_service
+from app.db import get_db
 
 logger = logging.getLogger(__name__)
 
 
 class PDFProcessor:
-    """Process PDF documents with smart chunking"""
+    """Process PDF files and store in MongoDB + Pinecone"""
     
     def __init__(self):
-        self.chunker = get_text_chunker(ChunkConfig(
-            chunk_size=512,
-            overlap_pct=0.15
-        ))
+        self.doc_processor = get_document_processor()
         self.openai_service = get_openai_service()
         self.pinecone_service = get_pinecone_service()
-    
-    def extract_text_from_pdf(self, file_path: str) -> Tuple[List[Dict[str, Any]], int]:
-        """Extract text from PDF page by page"""
-        if PdfReader is None:
-            raise ImportError("PyPDF2 required")
-        
-        try:
-            reader = PdfReader(file_path)
-            pages_data = []
-            
-            for page_num, page in enumerate(reader.pages, start=1):
-                text = page.extract_text()
-                
-                if text.strip():
-                    pages_data.append({
-                        "page_number": page_num,
-                        "text": text.strip()
-                    })
-                else:
-                    logger.warning(f"Page {page_num} has no extractable text")
-            
-            logger.info(f"Extracted text from {len(pages_data)}/{len(reader.pages)} pages")
-            return pages_data, len(reader.pages)
-            
-        except Exception as e:
-            logger.error(f"Error extracting PDF text: {str(e)}")
-            raise
-    
-    def create_smart_chunks(
-        self,
-        pages_data: List[Dict[str, Any]],
-        document_id: str,
-        business_id: str,
-        source_file: str
-    ) -> List[Dict[str, Any]]:
-        """Create smart chunks from PDF pages"""
-        all_chunks = []
-        chunk_counter = 0
-        
-        for page_data in pages_data:
-            page_num = page_data["page_number"]
-            text = page_data["text"]
-            
-            # Smart split with paragraph preference
-            text_chunks = self.chunker.smart_split(text, prefer_paragraphs=True)
-            
-            for chunk_text in text_chunks:
-                chunk_data = {
-                    "id": f"chunk_{uuid.uuid4().hex[:12]}",
-                    "text": chunk_text,
-                    "metadata": {
-                        "document_id": document_id,
-                        "business_id": business_id,
-                        "document_type": "pdf",
-                        "source_file": source_file,
-                        "page_number": page_num,
-                        "chunk_index": chunk_counter,
-                        "extraction_method": "text",
-                        "upload_date": datetime.utcnow().isoformat()
-                    }
-                }
-                all_chunks.append(chunk_data)
-                chunk_counter += 1
-        
-        # Update total chunks
-        for chunk in all_chunks:
-            chunk["metadata"]["total_chunks"] = len(all_chunks)
-        
-        logger.info(f"Created {len(all_chunks)} smart chunks from {len(pages_data)} pages")
-        return all_chunks
-    
-    def generate_embeddings_batch(self, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Generate embeddings for all chunks"""
-        try:
-            texts = [chunk["text"] for chunk in chunks]
-            embeddings = self.openai_service.generate_embeddings_batch(texts)
-            
-            for chunk, embedding in zip(chunks, embeddings):
-                chunk["embedding"] = embedding
-            
-            logger.info(f"Generated embeddings for {len(chunks)} chunks")
-            return chunks
-            
-        except Exception as e:
-            logger.error(f"Error generating embeddings: {str(e)}")
-            raise
-    
-    def store_chunks_in_pinecone(
-        self,
-        chunks: List[Dict[str, Any]],
-        namespace: str
-    ) -> List[str]:
-        """Store chunks in Pinecone"""
-        try:
-            texts = [chunk["text"] for chunk in chunks]
-            metadatas = [chunk["metadata"] for chunk in chunks]
-            
-            ids = self.pinecone_service.add_documents(
-                texts=texts,
-                metadatas=metadatas,
-                namespace=namespace
-            )
-            
-            logger.info(f"Stored {len(ids)} chunks in Pinecone")
-            return ids
-            
-        except Exception as e:
-            logger.error(f"Error storing in Pinecone: {str(e)}")
-            raise
+        self.db = get_db()
     
     async def process_pdf(
         self,
         file_path: str,
-        business_id: str,
+        workspace_id: str,
         filename: str
     ) -> Dict[str, Any]:
         """
-        Complete PDF processing pipeline:
-        1. Extract text from PDF
-        2. Create smart chunks
-        3. Generate embeddings
-        4. Store in Pinecone
+        Process PDF: extract text, chunk, embed, store in MongoDB + Pinecone
+        
+        Args:
+            file_path: Path to PDF file
+            workspace_id: Workspace ID
+            filename: Original filename
+            
+        Returns:
+            Processing results
         """
         start_time = time.time()
-        document_id = f"pdf_{uuid.uuid4().hex[:12]}"
         
         try:
-            logger.info(f"Starting PDF processing: {filename}")
+            # Generate document ID
+            import uuid
+            document_id = f"pdf_{uuid.uuid4().hex[:12]}"
             
-            # Step 1: Extract text
-            pages_data, total_pages = self.extract_text_from_pdf(file_path)
+            logger.info(f"Processing PDF: {filename} (ID: {document_id})")
             
-            if not pages_data:
-                raise ValueError("No text could be extracted from PDF")
-            
-            # Step 2: Create smart chunks
-            chunks = self.create_smart_chunks(
-                pages_data=pages_data,
+            # 1. Extract text and create chunks
+            chunks_data = self.doc_processor.process_pdf(
+                file_path=file_path,
                 document_id=document_id,
-                business_id=business_id,
-                source_file=filename
+                workspace_id=workspace_id
             )
             
-            # Step 3: Generate embeddings
-            chunks = self.generate_embeddings_batch(chunks)
+            logger.info(f"Created {len(chunks_data)} chunks from PDF")
             
-            # Step 4: Store in Pinecone
-            stored_ids = self.store_chunks_in_pinecone(
-                chunks=chunks,
-                namespace=business_id
+            # 2. Generate embeddings for all chunks
+            texts = [chunk["text"] for chunk in chunks_data]
+            embeddings = self.openai_service.generate_embeddings_batch(texts)
+            
+            logger.info(f"Generated {len(embeddings)} embeddings")
+            
+            # 3. Prepare metadata for Pinecone
+            metadatas = [chunk["metadata"] for chunk in chunks_data]
+            
+            # 4. Store vectors in Pinecone
+            pinecone_ids = self.pinecone_service.add_documents(
+                texts=texts,
+                metadatas=metadatas,
+                namespace=workspace_id
             )
+            
+            logger.info(f"Stored {len(pinecone_ids)} vectors in Pinecone")
+            
+            # 5. Create document record in MongoDB
+            from pathlib import Path
+            file_size = Path(file_path).stat().st_size
+            
+            document_record = self.db.create_document(
+                document_id=document_id,
+                workspace_id=workspace_id,
+                document_type="pdf",
+                filename=filename,
+                file_path=file_path,
+                file_size=file_size,
+                total_chunks=len(chunks_data),
+                file_metadata={
+                    "original_filename": filename,
+                    "content_type": "application/pdf"
+                },
+                processing_metadata={
+                    "total_pages": max([c["metadata"].get("page_number", 0) for c in chunks_data]),
+                    "extraction_method": "text"
+                }
+            )
+            
+            logger.info(f"Created document record in MongoDB")
+            
+            # 6. Store chunks in MongoDB
+            mongo_chunks = []
+            for i, chunk_data in enumerate(chunks_data):
+                mongo_chunk = {
+                    "chunk_id": chunk_data["id"],
+                    "document_id": document_id,
+                    "workspace_id": workspace_id,
+                    "text": chunk_data["text"],
+                    "pinecone_id": pinecone_ids[i],
+                    "metadata": chunk_data["metadata"]
+                }
+                mongo_chunks.append(mongo_chunk)
+            
+            self.db.create_chunks_batch(mongo_chunks)
+            
+            logger.info(f"Stored {len(mongo_chunks)} chunks in MongoDB")
+            
+            # 7. Update user statistics
+            user = self.db.get_user_by_workspace(workspace_id)
+            if user:
+                self.db.update_user_stats(
+                    user_id=user["user_id"],
+                    increment_documents=1,
+                    increment_chunks=len(chunks_data)
+                )
             
             processing_time = time.time() - start_time
             
-            result = {
+            return {
                 "document_id": document_id,
-                "business_id": business_id,
-                "filename": filename,
-                "total_pages": total_pages,
-                "total_chunks": len(chunks),
-                "stored_ids": stored_ids,
-                "processing_time": processing_time
+                "total_pages": document_record["processing_metadata"]["total_pages"],
+                "total_chunks": len(chunks_data),
+                "processing_time": round(processing_time, 2)
             }
-            
-            logger.info(f"PDF processing completed in {processing_time:.2f}s")
-            return result
             
         except Exception as e:
             logger.error(f"Error processing PDF: {str(e)}")
             raise
 
 
+# Singleton instance
+_pdf_processor = None
+
 def get_pdf_processor() -> PDFProcessor:
-    """Get PDFProcessor instance"""
-    return PDFProcessor()
+    """Get or create PDFProcessor singleton"""
+    global _pdf_processor
+    if _pdf_processor is None:
+        _pdf_processor = PDFProcessor()
+    return _pdf_processor

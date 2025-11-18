@@ -60,11 +60,16 @@ async def upload_qna(
         # Process Q&A pairs
         logger.info(f"Processing {len(qna_data.qna_pairs)} Q&A pairs for workspace: {workspace_id}")
         qna_processor = get_qna_processor()
+        
+        # Convert Pydantic models → dicts
+        pairs_dict = [pair.dict() for pair in qna_data.qna_pairs]
+
         result = await qna_processor.process_qna_pairs(
-            qna_pairs=qna_data.qna_pairs,
+            qna_pairs=pairs_dict,
             business_id=workspace_id,
             document_id=document_id
         )
+
         
         return QnAUploadResponse(
             success=True,
