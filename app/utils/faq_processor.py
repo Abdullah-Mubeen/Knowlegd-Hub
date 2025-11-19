@@ -27,7 +27,7 @@ class FAQProcessor:
         self,
         faq_items: List[FAQItem],
         document_id: str,
-        business_id: str,
+        workspace_id: str,
         category: str
     ) -> List[Dict[str, Any]]:
         """Create chunks from FAQ items"""
@@ -53,7 +53,7 @@ class FAQProcessor:
                         "text": chunk_text,
                         "metadata": {
                             "document_id": document_id,
-                            "business_id": business_id,
+                            "workspace_id": workspace_id,
                             "document_type": "faq",
                             "source_file": "faq_import",
                             "chunk_index": len(chunks),
@@ -72,7 +72,7 @@ class FAQProcessor:
                     "text": combined_text,
                     "metadata": {
                         "document_id": document_id,
-                        "business_id": business_id,
+                        "workspace_id": workspace_id,
                         "document_type": "faq",
                         "source_file": "faq_import",
                         "chunk_index": len(chunks),
@@ -134,7 +134,7 @@ class FAQProcessor:
     async def process_faq_items(
         self,
         faq_items: List[FAQItem],
-        business_id: str,
+        workspace_id: str,
         category: str,
         document_id: str
     ) -> Dict[str, Any]:
@@ -153,7 +153,7 @@ class FAQProcessor:
             chunks = self.create_chunks_from_faq(
                 faq_items=faq_items,
                 document_id=document_id,
-                business_id=business_id,
+                workspace_id=workspace_id,
                 category=category
             )
             
@@ -163,14 +163,14 @@ class FAQProcessor:
             # Step 3: Store in Pinecone
             stored_ids = self.store_chunks_in_pinecone(
                 chunks=chunks,
-                namespace=business_id
+                namespace=workspace_id
             )
             
             processing_time = time.time() - start_time
             
             result = {
                 "document_id": document_id,
-                "business_id": business_id,
+                "workspace_id": workspace_id,
                 "total_chunks": len(chunks),
                 "stored_ids": stored_ids,
                 "processing_time": processing_time

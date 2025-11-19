@@ -12,7 +12,7 @@ from app.db import get_db
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+router = APIRouter()
 
 # JWT Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
@@ -206,23 +206,3 @@ async def get_current_user():
         "message": "This endpoint requires authentication",
         "info": "Use /register or /login to get a JWT token"
     }
-
-
-@router.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    try:
-        db = get_db()
-        db_health = db.health_check()
-        
-        return {
-            "status": "healthy",
-            "endpoint": "authentication",
-            "database": db_health
-        }
-    except Exception as e:
-        return {
-            "status": "degraded",
-            "endpoint": "authentication",
-            "error": str(e)
-        }

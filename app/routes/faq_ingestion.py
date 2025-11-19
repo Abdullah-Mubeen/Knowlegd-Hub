@@ -6,13 +6,15 @@ import uuid
 
 from app.models.faq_schemas import FAQUploadResponse, FAQItem
 from app.utils.faq_processor import get_faq_processor
+from app.db import get_db
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/knowledge-hub/ingest/faq", tags=["FAQ Ingestion"])
+router = APIRouter()
 
 
-# Request model without business_id
+# Request model without workspace_id
 class FAQUploadRequestAuth(BaseModel):
     category: str
     faq_items: List[FAQItem]
@@ -66,7 +68,7 @@ async def upload_faq(
         faq_processor = get_faq_processor()
         result = await faq_processor.process_faq_items(
             faq_items=faq_data.faq_items,
-            business_id=workspace_id,
+            workspace_id=workspace_id,
             category=faq_data.category,
             document_id=document_id
         )
@@ -74,7 +76,7 @@ async def upload_faq(
         return FAQUploadResponse(
             success=True,
             document_id=result["document_id"],
-            business_id=workspace_id,
+            workspace_id=workspace_id,
             category=faq_data.category,
             total_items=len(faq_data.faq_items),
             total_chunks=result["total_chunks"],
@@ -92,12 +94,89 @@ async def upload_faq(
         )
 
 
-@router.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "endpoint": "faq_ingestion",
-        "supported_formats": ["json"],
-        "methods": ["POST /upload"]
-    }
+@router.get("")
+async def list_faq_documents(
+    request: Request,
+    limit: int = 50,
+    skip: int = 0
+):
+    """
+    List FAQ documents for the authenticated workspace
+    """
+    try:
+        user = request.state.user
+        workspace_id = user["workspace_id"]
+
+        db = get_db()
+        documents = db.list_documents(
+            workspace_id=workspace_id,
+            document_type="faq",
+            limit=limit,
+            skip=skip
+        )
+
+        return {
+            "documents": documents,
+            "total": len(documents),
+            "limit": limit,
+            "skip": skip
+        }
+
+    except Exception as e:
+        logger.error(f"Error listing FAQ documents: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to list FAQ documents: {str(e)}")
+
+
+@router.delete("/{document_id}")
+async def delete_faq_document(request: Request, document_id: str):
+    """Delete a FAQ document and its chunks/vectors"""
+    try:
+        user = request.state.user
+        workspace_id = user["workspace_id"]
+
+        db = get_db()
+
+        document = db.get_document(document_id)
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        if document["workspace_id"] != workspace_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        # ensure document type matches
+        if document.get("document_type") != "faq":
+            raise HTTPException(status_code=400, detail="Document is not a FAQ document")
+
+        # Delete chunks from MongoDB
+        deleted_chunks = db.delete_chunks_by_document(document_id)
+
+        # Delete vectors from Pinecone
+        from app.utils.pinecone_service import get_pinecone_service
+        pinecone_service = get_pinecone_service()
+        pinecone_service.delete_by_metadata(
+            filter_dict={"document_id": document_id},
+            namespace=workspace_id
+        )
+
+        # Soft delete document
+        db.delete_document(document_id)
+
+        # Update user stats
+        db.update_user_stats(
+            user_id=user["user_id"],
+            increment_documents=-1,
+            increment_chunks=-deleted_chunks
+        )
+
+        return {
+            "success": True,
+            "document_id": document_id,
+            "deleted_chunks": deleted_chunks,
+            "message": "FAQ document deleted successfully"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting FAQ document: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete FAQ document: {str(e)}")

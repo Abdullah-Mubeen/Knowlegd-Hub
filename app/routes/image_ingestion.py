@@ -7,10 +7,12 @@ from pathlib import Path
 from app.models.image_schemas import ImageUploadResponse
 from app.utils.file_handler import get_file_handler
 from app.utils.image_processor import get_image_processor
+from app.db import get_db
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/knowledge-hub/ingest/image", tags=["Image Ingestion"])
+router = APIRouter()
 
 MAX_IMAGES_PER_UPLOAD = 10
 ALLOWED_EXTENSIONS = {'.png', '.jpg', '.jpeg'}
@@ -76,7 +78,7 @@ async def upload_images(
                 logger.info(f"Saving image: {file.filename} for workspace: {workspace_id}")
                 file_path, file_metadata = await file_handler.save_upload_file(
                     file=file,
-                    business_id=workspace_id,
+                    workspace_id=workspace_id,
                     document_id=document_id,
                     validate=False
                 )
@@ -85,7 +87,7 @@ async def upload_images(
                 logger.info(f"Processing image: {file.filename}")
                 result = await image_processor.process_image(
                     file_path=file_path,
-                    business_id=workspace_id,
+                    workspace_id=workspace_id,
                     filename=file.filename,
                     use_ocr=True
                 )
@@ -125,12 +127,65 @@ async def upload_images(
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
-@router.get("/health")
-async def health_check():
-    """Health check"""
-    return {
-        "status": "healthy",
-        "endpoint": "image_ingestion",
-        "max_images_per_upload": MAX_IMAGES_PER_UPLOAD,
-        "supported_formats": list(ALLOWED_EXTENSIONS)
-    }
+
+@router.get("")
+async def list_image_documents(
+    request: Request,
+    limit: int = 50,
+    skip: int = 0
+):
+    """List image documents for workspace"""
+    try:
+        user = request.state.user
+        workspace_id = user["workspace_id"]
+
+        db = get_db()
+        documents = db.list_documents(
+            workspace_id=workspace_id,
+            document_type="image",
+            limit=limit,
+            skip=skip
+        )
+
+        return {"documents": documents, "total": len(documents), "limit": limit, "skip": skip}
+
+    except Exception as e:
+        logger.error(f"Error listing image documents: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to list images: {str(e)}")
+
+
+@router.delete("/{document_id}")
+async def delete_image_document(request: Request, document_id: str):
+    """Delete image document and its associated chunks/vectors"""
+    try:
+        user = request.state.user
+        workspace_id = user["workspace_id"]
+
+        db = get_db()
+        document = db.get_document(document_id)
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        if document["workspace_id"] != workspace_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        if document.get("document_type") != "image":
+            raise HTTPException(status_code=400, detail="Document is not an image document")
+
+        deleted_chunks = db.delete_chunks_by_document(document_id)
+
+        from app.utils.pinecone_service import get_pinecone_service
+        pinecone_service = get_pinecone_service()
+        pinecone_service.delete_by_metadata(filter_dict={"document_id": document_id}, namespace=workspace_id)
+
+        db.delete_document(document_id)
+
+        db.update_user_stats(user_id=user["user_id"], increment_documents=-1, increment_chunks=-deleted_chunks)
+
+        return {"success": True, "document_id": document_id, "deleted_chunks": deleted_chunks, "message": "Image document deleted"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting image document: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete image document: {str(e)}")

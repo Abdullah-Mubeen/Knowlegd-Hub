@@ -37,13 +37,13 @@ app.add_middleware(AuthMiddleware)
 # Security scheme for Swagger UI
 security = HTTPBearer()
 
-# Include routers
-app.include_router(auth_routes.router)
-app.include_router(pdf_ingestion.router)
-app.include_router(image_ingestion.router)
-app.include_router(qna_ingestion.router)
-app.include_router(faq_ingestion.router)
-app.include_router(rag_router.router)
+# Include routers  
+app.include_router(auth_routes.router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(pdf_ingestion.router, prefix="/api/knowledge-hub/ingest/pdf", tags=["Knowledge Hub"])
+app.include_router(image_ingestion.router, prefix="/api/knowledge-hub/ingest/image", tags=["Knowledge Hub"])
+app.include_router(qna_ingestion.router, prefix="/api/knowledge-hub/ingest/qna", tags=["Knowledge Hub"])
+app.include_router(faq_ingestion.router, prefix="/api/knowledge-hub/ingest/faq", tags=["Knowledge Hub"])
+app.include_router(rag_router.router, prefix="/api/rag", tags=["RAG Chat System"])
 
 
 def custom_openapi():
