@@ -5,10 +5,12 @@ import logging
 
 from app.utils.rag_query import get_rag_service
 from app.db import get_db
+from app.utils.rag_conv import get_conversational_rag_service, ConversationMode
+from fastapi.responses import StreamingResponse
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/rag", tags=["RAG Query"])
+router = APIRouter()
 
 
 class QueryRequest(BaseModel):
@@ -27,6 +29,25 @@ class QueryResponse(BaseModel):
 class QueryHistoryResponse(BaseModel):
     history: List[Dict[str, Any]]
     total: int
+
+
+class ChatRequest(BaseModel):
+    message: str
+    conversation_id: Optional[str] = None
+    top_k: Optional[int] = 5
+    filters: Optional[Dict[str, Any]] = None
+    mode: Optional[str] = ConversationMode.CHAT.value
+
+
+class ChatResponse(BaseModel):
+    answer: str
+    sources: List[Dict[str, Any]]
+    total_sources: int
+    cited_sources: int
+    conversation_id: str
+    intent: str
+    response_time: float
+    rewritten_query: Optional[str] = None
 
 
 @router.post("/query", response_model=QueryResponse)
