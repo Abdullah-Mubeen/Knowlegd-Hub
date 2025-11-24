@@ -114,62 +114,130 @@ class OpenAIService:
             raise
     
     def extract_text_from_image(self, image_bytes: bytes) -> str:
-        """
-        Extract text from image using OpenAI Vision API (GPT-4 Vision)
-        
-        Args:
-            image_bytes: Raw image bytes
+            """
+            Extract text from image using OpenAI Vision API (GPT-4o for best accuracy)
             
-        Returns:
-            Extracted text from image
-        """
-        try:
-            from openai import OpenAI
-            
-            client = OpenAI(api_key=self.api_key)
-            
-            # Convert to base64
-            base64_image = base64.b64encode(image_bytes).decode('utf-8')
-            
-            # Call Vision API
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",  # Vision-capable model
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": """Extract ALL visible text from this image accurately. Include:
-- Main body text
-- Headers and titles
-- Captions, labels, and annotations
-- Table contents and structured data
-- Any other visible text
+            Args:
+                image_bytes: Raw image bytes
+                
+            Returns:
+                Extracted text from image
+            """
+            try:
+                from openai import OpenAI
+                
+                client = OpenAI(api_key=self.api_key)
+                
+                # Convert to base64
+                base64_image = base64.b64encode(image_bytes).decode('utf-8')
+                
+                # Call Vision API with GPT-4o (better than gpt-4o-mini for OCR)
+                response = client.chat.completions.create(
+                    model="gpt-4o",  # ✅ UPGRADED from gpt-4o-mini for better accuracy
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": """Extract ALL visible text from this image with high accuracy.
 
-Maintain the structure and formatting. Return only the extracted text."""
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{base64_image}",
-                                    "detail": "high"
+        Instructions:
+        - Extract every word, number, and text element you can see
+        - Preserve the original structure and formatting as much as possible
+        - Include headers, titles, body text, captions, labels
+        - Include table contents and structured data if present
+        - Maintain paragraph breaks and logical text flow
+        - If there's no readable text, return an empty response
+
+        Return only the extracted text, nothing else."""
+                                },
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{base64_image}",
+                                        "detail": "high"  # High detail for best OCR quality
+                                    }
                                 }
-                            }
-                        ]
-                    }
-                ],
-                max_tokens=1500
-            )
+                            ]
+                        }
+                    ],
+                    max_tokens=4096,  # ✅ Increased from 1500 for longer documents
+                    temperature=0.1   # ✅ Low temperature for accuracy
+                )
+                
+                extracted_text = response.choices[0].message.content
+                
+                if extracted_text:
+                    extracted_text = extracted_text.strip()
+                    logger.info(f"✅ Extracted {len(extracted_text)} characters from image using Vision API")
+                else:
+                    logger.warning("⚠️ No text extracted from image")
+                    extracted_text = ""
+                
+                return extracted_text
+                
+            except Exception as e:
+                logger.error(f"❌ Error extracting text from image: {str(e)}")
+                raise
+
+
+        # OPTIONAL: Add this new method for getting image descriptions
+    
+    def describe_image(self, image_bytes: bytes) -> str:
+            """
+            Get a brief description of the image for context
             
-            extracted_text = response.choices[0].message.content
-            logger.info(f"Extracted {len(extracted_text)} characters from image using Vision API")
-            
-            return extracted_text.strip()
-            
-        except Exception as e:
-            logger.error(f"Error extracting text from image: {str(e)}")
-            raise
+            Args:
+                image_bytes: Raw image bytes
+                
+            Returns:
+                Image description (1-2 sentences)
+            """
+            try:
+                from openai import OpenAI
+                
+                client = OpenAI(api_key=self.api_key)
+                base64_image = base64.b64encode(image_bytes).decode('utf-8')
+                
+                response = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": """Provide a brief 1-2 sentence description of this image.
+
+        Focus on:
+        - Main subject or document type
+        - Purpose or context
+        - Key visual elements
+
+        Be concise and informative for search context."""
+                                },
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{base64_image}",
+                                        "detail": "low"  # Low detail is sufficient for description
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    max_tokens=150,
+                    temperature=0.3
+                )
+                
+                description = response.choices[0].message.content.strip()
+                logger.info(f"Generated image description: {description[:100]}...")
+                return description
+                
+            except Exception as e:
+                logger.warning(f"Could not get image description: {str(e)}")
+                return ""
     
     def generate_answer(
         self,

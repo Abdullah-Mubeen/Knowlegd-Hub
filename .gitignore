@@ -35,7 +35,8 @@ build/
 Thumbs.db
 
 # FastAPI / RAG-specific
-*.pkl           # pickled models or embeddings
-*.bin           # model checkpoint binaries
-embeddings/     # folder if storing vector embeddings
-knowledge_hub/  # optional: local knowledge/data uploads
+*.pkl           
+*.bin            
+embeddings/      
+knowledge_hub/   
+storage/**

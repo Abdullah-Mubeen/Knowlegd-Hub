@@ -1,3 +1,4 @@
+from app.config import get_settings
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import Request, HTTPException
 from jose import jwt, JWTError
@@ -5,9 +6,10 @@ from starlette.responses import JSONResponse
 import os
 import re
 
-# Shared secret key used to verify JWTs
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
-ALGORITHM = "HS256"
+settings = get_settings()
+SECRET_KEY = settings.SECRET_KEY  
+ALGORITHM = settings.JWT_ALGORITHM   
+
 
 # Paths that don't require authentication
 ALLOWED_PATHS = {
@@ -32,6 +34,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
         
+        if request.method == "OPTIONS":
+            return await call_next(request) 
+
         # Bypass authentication for allowed paths
         if path in ALLOWED_PATHS:
             return await call_next(request)

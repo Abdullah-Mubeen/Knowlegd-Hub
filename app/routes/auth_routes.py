@@ -8,15 +8,16 @@ import uuid
 import logging
 import os
 
+from app.config import get_settings
 from app.db import get_db
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# JWT Configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
-ALGORITHM = "HS256"
+settings = get_settings()
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.JWT_ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
 

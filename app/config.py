@@ -28,10 +28,8 @@ class Settings(BaseSettings):
     )
 
     # JWT Authentication
-    SECRET_KEY: str = Field(
-        default="your-secret-key-change-in-production",
-        description="Secret key for JWT tokens"
-    )
+    SECRET_KEY: str 
+    JWT_ALGORITHM: str = "HS256"
 
     # App meta
     APP_NAME: str = "KnowledgeBaseAPI"
