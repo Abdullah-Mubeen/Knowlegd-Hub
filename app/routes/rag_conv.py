@@ -12,7 +12,7 @@ from app.utils.rag_conv import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/chat", tags=["Conversational RAG"])
+router = APIRouter()
 
 
 class ChatRequest(BaseModel):

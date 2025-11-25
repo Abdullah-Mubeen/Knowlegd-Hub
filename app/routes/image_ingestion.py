@@ -8,7 +8,6 @@ from app.models.image_schemas import ImageUploadResponse
 from app.utils.file_handler import get_file_handler
 from app.utils.image_processor import get_image_processor
 from app.db import get_db
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -18,321 +17,82 @@ MAX_IMAGES_PER_UPLOAD = 10
 ALLOWED_EXTENSIONS = {'.png', '.jpg', '.jpeg'}
 
 
-@router.post("/upload", response_model=dict)
+@router.post("/ingest/images", response_model=ImageUploadResponse)
 async def upload_images(
     request: Request,
     files: List[UploadFile] = File(...)
 ):
     """
-    Upload and process multiple images with smart chunking and OpenAI Vision
-    
-    - **files**: Image files (PNG, JPG, JPEG - max 10 files)
+    Upload and process multiple images
     
     **Note**: workspace_id is automatically extracted from your JWT token
-    
-    Returns list of processed images with chunks and embeddings
     """
     try:
-        # Get workspace_id from authenticated user
         user = request.state.user
         workspace_id = user["workspace_id"]
-        user_id = user["user_id"]
         
-        # Validate number of files
         if len(files) > MAX_IMAGES_PER_UPLOAD:
             raise HTTPException(
                 status_code=400,
                 detail=f"Maximum {MAX_IMAGES_PER_UPLOAD} images per upload"
             )
         
-        if len(files) == 0:
-            raise HTTPException(status_code=400, detail="No files provided")
-        
         file_handler = get_file_handler()
         image_processor = get_image_processor()
-        db = get_db()
+        document_id = f"images_{uuid.uuid4().hex[:12]}"
         
-        results = []
-        failed = []
-        
+        processed_images = []
         for file in files:
-            document_id = None
-            file_path = None
+            if Path(file.filename).suffix.lower() not in ALLOWED_EXTENSIONS:
+                raise HTTPException(status_code=400, detail="Invalid file type")
             
-            try:
-                # Validate extension
-                file_ext = Path(file.filename).suffix.lower()
-                if file_ext not in ALLOWED_EXTENSIONS:
-                    failed.append({
-                        "filename": file.filename,
-                        "error": f"Only {', '.join(ALLOWED_EXTENSIONS)} allowed"
-                    })
-                    continue
-                
-                # Validate file
-                is_valid, error_msg = file_handler.validate_file(file)
-                if not is_valid:
-                    failed.append({"filename": file.filename, "error": error_msg})
-                    continue
-                
-                await file.seek(0)
-                
-                # Generate document ID
-                document_id = f"img_{uuid.uuid4().hex[:12]}"
-                
-                # Save file
-                logger.info(f"Saving image: {file.filename} for workspace: {workspace_id}")
-                file_path, file_metadata = await file_handler.save_upload_file(
-                    file=file,
-                    workspace_id=workspace_id,
-                    document_id=document_id,
-                    validate=False
-                )
-                
-                # Process image (extract text, create chunks, generate embeddings)
-                logger.info(f"Processing image: {file.filename}")
-                processing_result = await image_processor.process_image(
-                    file_path=file_path,
-                    workspace_id=workspace_id,
-                    filename=file.filename,
-                    use_ocr=True
-                )
-                
-                # Save document metadata to MongoDB
-                doc_metadata = db.create_document(
-                    document_id=document_id,
-                    workspace_id=workspace_id,
-                    document_type="image",
-                    filename=file.filename,
-                    file_path=file_path,
-                    file_size=file_metadata["file_size"],
-                    total_chunks=processing_result["total_chunks"],
-                    file_metadata={
-                        "image_size": processing_result["image_size"],
-                        "extraction_method": processing_result["extraction_method"],
-                        "confidence_score": processing_result.get("confidence_score"),
-                        "extracted_text_length": processing_result.get("extracted_text_length", 0),
-                        "image_description": processing_result.get("image_description", ""),
-                        **file_metadata
-                    },
-                    processing_metadata={
-                        "processing_time": processing_result["processing_time"],
-                        "model": "gpt-4-vision",
-                        "stored_ids": processing_result["stored_ids"]
-                    }
-                )
-                
-                # Save chunks to MongoDB
-                chunks_to_save = []
-                for idx, (chunk_metadata, pinecone_id) in enumerate(
-                    zip(processing_result["chunks_metadata"], processing_result["stored_ids"])
-                ):
-                    chunk_data = {
-                        "chunk_id": f"chunk_{document_id}_{idx}",
-                        "document_id": document_id,
-                        "workspace_id": workspace_id,
-                        "text": "",  # Text is in Pinecone, we just store metadata
-                        "pinecone_id": pinecone_id,
-                        "metadata": chunk_metadata
-                    }
-                    chunks_to_save.append(chunk_data)
-                
-                # Batch insert chunks
-                if chunks_to_save:
-                    db.create_chunks_batch(chunks_to_save)
-                    logger.info(f"Saved {len(chunks_to_save)} chunks to MongoDB")
-                
-                # Update user statistics
-                db.update_user_stats(
-                    user_id=user_id,
-                    increment_documents=1,
-                    increment_chunks=processing_result["total_chunks"]
-                )
-                
-                results.append({
-                    "success": True,
-                    "document_id": document_id,
-                    "filename": file.filename,
-                    "image_size": processing_result["image_size"],
-                    "image_description": processing_result.get("image_description", ""),
-                    "total_chunks": processing_result["total_chunks"],
-                    "extraction_method": processing_result["extraction_method"],
-                    "confidence_score": processing_result.get("confidence_score"),
-                    "extracted_text_length": processing_result.get("extracted_text_length", 0),
-                    "file_size": file_metadata["file_size"],
-                    "processing_time": processing_result["processing_time"]
-                })
-                
-                logger.info(f"Image processed and saved: {document_id}")
-            
-            except Exception as e:
-                logger.error(f"Error processing {file.filename}: {str(e)}")
-                
-                # Cleanup on failure
-                if document_id:
-                    try:
-                        db.delete_document(document_id)
-                        db.delete_chunks_by_document(document_id)
-                    except:
-                        pass
-                
-                if file_path:
-                    try:
-                        file_handler.delete_file(file_path)
-                    except:
-                        pass
-                
-                failed.append({
-                    "filename": file.filename,
-                    "error": str(e)
-                })
+            await file.seek(0)
+            file_path, file_metadata = await file_handler.save_upload_file(
+                file, workspace_id, document_id
+            )
+            processed_data = image_processor.process_image(file_path, workspace_id, document_id)
+            processed_images.append(processed_data)
         
-        # Return comprehensive results
-        response = {
-            "success": len(results) > 0,
-            "processed": results,
-            "failed": failed,
-            "total_processed": len(results),
-            "total_failed": len(failed),
-            "workspace_id": workspace_id,
-            "message": f"Successfully processed {len(results)}/{len(files)} images"
-        }
-        
-        if len(failed) > 0:
-            response["warning"] = f"{len(failed)} images failed to process"
-        
-        return response
-    
-    except HTTPException:
-        raise
+        return ImageUploadResponse(
+            document_id=document_id,
+            processed_images=processed_images
+        )
     except Exception as e:
         logger.error(f"Error uploading images: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 
-@router.get("")
-async def list_image_documents(
-    request: Request,
-    limit: int = 50,
-    skip: int = 0
-):
-    """List image documents for workspace with metadata"""
+@router.delete("/ingest/images/{preprocessed_id}")
+async def delete_images(preprocessed_id: str):
+    """
+    Delete preprocessed image documents
+    
+    - **preprocessed_id**: ID of the preprocessed document
+    """
     try:
-        user = request.state.user
-        workspace_id = user["workspace_id"]
-
         db = get_db()
-        documents = db.list_documents(
-            workspace_id=workspace_id,
-            document_type="image",
-            limit=limit,
-            skip=skip
-        )
-
-        return {
-            "documents": documents,
-            "total": len(documents),
-            "limit": limit,
-            "skip": skip,
-            "workspace_id": workspace_id
-        }
-
+        result = db.delete_document(preprocessed_id)
+        if not result:
+            raise HTTPException(status_code=404, detail="Document not found")
+        return {"message": "Document deleted successfully"}
     except Exception as e:
-        logger.error(f"Error listing image documents: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to list images: {str(e)}")
+        logger.error(f"Error deleting images: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 
-@router.get("/{document_id}")
-async def get_image_document(request: Request, document_id: str):
-    """Get specific image document with all its chunks"""
+@router.get("/ingest/images/{document_id}")
+async def get_images(document_id: str):
+    """
+    Retrieve image documents by their ID
+    
+    - **document_id**: ID of the document
+    """
     try:
-        user = request.state.user
-        workspace_id = user["workspace_id"]
-
         db = get_db()
         document = db.get_document(document_id)
-        
         if not document:
             raise HTTPException(status_code=404, detail="Document not found")
-
-        if document["workspace_id"] != workspace_id:
-            raise HTTPException(status_code=403, detail="Access denied")
-
-        if document.get("document_type") != "image":
-            raise HTTPException(status_code=400, detail="Document is not an image")
-
-        # Get all chunks for this document
-        chunks = db.get_chunks_by_document(document_id)
-
-        return {
-            "document": document,
-            "chunks": chunks,
-            "total_chunks": len(chunks)
-        }
-
-    except HTTPException:
-        raise
+        return document
     except Exception as e:
-        logger.error(f"Error getting image document: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to get image: {str(e)}")
-
-
-@router.delete("/{document_id}")
-async def delete_image_document(request: Request, document_id: str):
-    """Delete image document and its associated chunks/vectors"""
-    try:
-        user = request.state.user
-        workspace_id = user["workspace_id"]
-        user_id = user["user_id"]
-
-        db = get_db()
-        document = db.get_document(document_id)
-        
-        if not document:
-            raise HTTPException(status_code=404, detail="Document not found")
-
-        if document["workspace_id"] != workspace_id:
-            raise HTTPException(status_code=403, detail="Access denied")
-
-        if document.get("document_type") != "image":
-            raise HTTPException(status_code=400, detail="Document is not an image document")
-
-        # Delete chunks from MongoDB
-        deleted_chunks = db.delete_chunks_by_document(document_id)
-
-        # Delete from Pinecone
-        from app.utils.pinecone_service import get_pinecone_service
-        pinecone_service = get_pinecone_service()
-        pinecone_service.delete_by_metadata(
-            filter_dict={"document_id": document_id},
-            namespace=workspace_id
-        )
-
-        # Delete file from storage
-        from app.utils.file_handler import get_file_handler
-        file_handler = get_file_handler()
-        if document.get("file_path"):
-            file_handler.delete_file(document["file_path"])
-
-        # Soft delete document
-        db.delete_document(document_id)
-
-        # Update user statistics
-        db.update_user_stats(
-            user_id=user_id,
-            increment_documents=-1,
-            increment_chunks=-deleted_chunks
-        )
-
-        return {
-            "success": True,
-            "document_id": document_id,
-            "deleted_chunks": deleted_chunks,
-            "message": "Image document deleted successfully"
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error deleting image document: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to delete image: {str(e)}")
+        logger.error(f"Error retrieving images: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")

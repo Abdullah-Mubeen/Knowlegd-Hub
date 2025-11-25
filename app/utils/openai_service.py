@@ -128,12 +128,11 @@ class OpenAIService:
                 
                 client = OpenAI(api_key=self.api_key)
                 
-                # Convert to base64
                 base64_image = base64.b64encode(image_bytes).decode('utf-8')
                 
-                # Call Vision API with GPT-4o (better than gpt-4o-mini for OCR)
+                # Call Vision API with GPT-4o
                 response = client.chat.completions.create(
-                    model="gpt-4o",  # ✅ UPGRADED from gpt-4o-mini for better accuracy
+                    model="gpt-4o",  
                     messages=[
                         {
                             "role": "user",
@@ -162,8 +161,8 @@ class OpenAIService:
                             ]
                         }
                     ],
-                    max_tokens=4096,  # ✅ Increased from 1500 for longer documents
-                    temperature=0.1   # ✅ Low temperature for accuracy
+                    max_tokens=4096, 
+                    temperature=0.1
                 )
                 
                 extracted_text = response.choices[0].message.content
@@ -182,8 +181,7 @@ class OpenAIService:
                 raise
 
 
-        # OPTIONAL: Add this new method for getting image descriptions
-    
+    # OPTIONAL
     def describe_image(self, image_bytes: bytes) -> str:
             """
             Get a brief description of the image for context
