@@ -92,19 +92,19 @@ async def delete_faq(preprocessed_id: str):
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 
-@router.get("/ingest/faq/{document_id}")
-async def get_faq(document_id: str):
+@router.get("/ingest/faq/list")
+async def list_faq(request: Request):
     """
-    Retrieve an FAQ document by its ID
+    List all FAQ documents for the current workspace
     
-    - **document_id**: ID of the document
+    **Note**: workspace_id is automatically extracted from your JWT token
     """
     try:
         db = get_db()
-        document = db.get_document(document_id)
-        if not document:
-            raise HTTPException(status_code=404, detail="Document not found")
-        return document
+        user = request.state.user
+        workspace_id = user["workspace_id"]
+        docs = db.list_documents(workspace_id=workspace_id, document_type="faq")
+        return {"documents": docs}
     except Exception as e:
-        logger.error(f"Error retrieving FAQ: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        logger.error(f"Error listing FAQs: {e}")
+        raise HTTPException(500, "Internal Server Error")

@@ -80,19 +80,19 @@ async def delete_images(preprocessed_id: str):
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 
-@router.get("/ingest/images/{document_id}")
-async def get_images(document_id: str):
+@router.get("/ingest/images/list")
+async def list_images(request: Request):
     """
-    Retrieve image documents by their ID
+    List all image documents for the current workspace
     
-    - **document_id**: ID of the document
+    **Note**: workspace_id is automatically extracted from your JWT token
     """
     try:
         db = get_db()
-        document = db.get_document(document_id)
-        if not document:
-            raise HTTPException(status_code=404, detail="Document not found")
-        return document
+        user = request.state.user
+        workspace_id = user["workspace_id"]
+        docs = db.list_documents(workspace_id=workspace_id, document_type="images")
+        return {"documents": docs}
     except Exception as e:
-        logger.error(f"Error retrieving images: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        logger.error(f"Error listing images: {e}")
+        raise HTTPException(500, "Internal Server Error")

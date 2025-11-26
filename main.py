@@ -39,10 +39,10 @@ security = HTTPBearer()
 
 # Include routers  
 app.include_router(auth_routes.router, prefix="/api/auth", tags=["Authentication"])
-app.include_router(pdf_ingestion.router, prefix="/api/knowledge-hub/ingest", tags=["PDF Management"])
-app.include_router(image_ingestion.router, prefix="/api/knowledge-hub/ingest", tags=["Image Management"])
-app.include_router(qna_ingestion.router, prefix="/api/knowledge-hub/ingest", tags=["Q&A Management"])
-app.include_router(faq_ingestion.router, prefix="/api/knowledge-hub/ingest", tags=["FAQ Management"])
+app.include_router(pdf_ingestion.router, prefix="/api/knowledge-hub", tags=["PDF Management"])
+app.include_router(image_ingestion.router, prefix="/api/knowledge-hub", tags=["Image Management"])
+app.include_router(qna_ingestion.router, prefix="/api/knowledge-hub", tags=["Q&A Management"])
+app.include_router(faq_ingestion.router, prefix="/api/knowledge-hub", tags=["FAQ Management"])
 app.include_router(rag_router.router, prefix="/api/rag", tags=["RAG Chat System"])
 app.include_router(rag_conv.router, prefix="/api/chat", tags=["Conversational RAG"])
 

@@ -91,19 +91,19 @@ async def delete_qna(preprocessed_id: str):
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 
-@router.get("/ingest/qna/{document_id}")
-async def get_qna(document_id: str):
+@router.get("/ingest/qna/list")
+async def list_qna(request: Request):
     """
-    Retrieve a Q&A document by its ID
+    List all Q&A documents for the current workspace
     
-    - **document_id**: ID of the document
+    **Note**: workspace_id is automatically extracted from your JWT token
     """
     try:
         db = get_db()
-        document = db.get_document(document_id)
-        if not document:
-            raise HTTPException(status_code=404, detail="Document not found")
-        return document
+        user = request.state.user
+        workspace_id = user["workspace_id"]
+        docs = db.list_documents(workspace_id=workspace_id, document_type="qna")
+        return {"documents": docs}
     except Exception as e:
-        logger.error(f"Error retrieving Q&A: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        logger.error(f"Error listing Q&A: {e}")
+        raise HTTPException(500, "Internal Server Error")

@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Knowledge Hub — Minimalist Interactive UI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Smooth animations */
+        .fade-in { animation: fadeIn 0.4s ease forwards; opacity: 0; }
+        @keyframes fadeIn { to { opacity: 1; } }
+
+        .scale-in { animation: scaleIn 0.4s ease forwards; opacity: 0; transform: scale(0.92); }
+        @keyframes scaleIn { to { opacity: 1; transform: scale(1); } }
+
+        .loader {
+            width: 18px; height: 18px;
+            border: 2px solid #3b82f6;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900 min-h-screen flex flex-col">
+
+<!-- NAVBAR -->
+<nav class="bg-white shadow fixed w-full z-20 top-0 left-0 px-6 py-4 flex justify-between items-center">
+    <h1 class="text-xl font-bold tracking-tight">Knowledge Hub</h1>
+    <div id="navActions" class="flex items-center gap-4 hidden">
+        <button onclick="switchView('dashboard')" class="hover:text-blue-600">Dashboard</button>
+        <button onclick="switchView('upload')" class="hover:text-blue-600">Upload</button>
+        <button onclick="switchView('chat')" class="hover:text-blue-600">Chat</button>
+        <button id="logoutBtn" class="text-red-500 hover:text-red-600">Logout</button>
+    </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<div class="pt-24 px-6 max-w-6xl w-full mx-auto"> 
+
+    <!-- AUTH WRAPPER -->
+    <section id="authSection" class="max-w-md mx-auto fade-in">
+        <div class="bg-white shadow-lg rounded-2xl p-8">
+            <h2 class="text-2xl font-semibold text-center mb-6">Welcome Back</h2>
+            <div id="authError" class="hidden text-red-500 text-center mb-4"></div>
+
+            <!-- LOGIN -->
+            <form id="loginForm" class="space-y-4">
+                <input id="loginEmail" type="email" placeholder="Email" class="w-full p-3 border rounded-lg" required>
+                <input id="loginPassword" type="password" placeholder="Password" class="w-full p-3 border rounded-lg" required>
+                <button class="w-full bg-blue-600 hover:bg-blue-700 rounded-lg text-white py-3">Login</button>
+            </form>
+
+            <p class="text-sm text-center mt-4">Don't have an account?
+                <button onclick="showRegister()" class="text-blue-600 hover:underline">Create one</button>
+            </p>
+        </div>
+
+        <!-- REGISTER -->
+        <div id="registerContainer" class="bg-white shadow-lg rounded-2xl p-8 hidden mt-6 scale-in">
+            <h2 class="text-2xl font-semibold text-center mb-6">Create Account</h2>
+            <form id="registerForm" class="space-y-4">
+                <input id="regEmail" type="email" placeholder="Email" class="w-full p-3 border rounded-lg" required>
+                <input id="regPassword" type="password" placeholder="Password" class="w-full p-3 border rounded-lg" required>
+                <input id="regName" placeholder="Name (optional)" class="w-full p-3 border rounded-lg" />
+                <input id="regCompany" placeholder="Company (optional)" class="w-full p-3 border rounded-lg" />
+
+                <button class="w-full bg-green-600 hover:bg-green-700 rounded-lg text-white py-3">Register</button>
+            </form>
+            <p class="text-sm text-center mt-4">
+                Already have an account?
+                <button onclick="hideRegister()" class="text-blue-600 hover:underline">Login</button>
+            </p>
+        </div>
+    </section>
+
+
+    <!-- DASHBOARD -->
+    <section id="dashboardView" class="hidden fade-in">
+        <h2 class="text-2xl font-semibold mb-4">Your Documents</h2>
+        <div id="docList" class="grid md:grid-cols-2 gap-4"></div>
+        <div id="emptyDocs" class="text-gray-500 text-center hidden">No documents uploaded yet.</div>
+    </section>
+
+
+    <!-- UPLOAD -->
+    <section id="uploadView" class="hidden fade-in">
+        <h2 class="text-2xl font-semibold mb-6">Upload Documents</h2>
+
+        <div class="bg-white p-6 rounded-xl shadow">
+            <form id="uploadForm" class="space-y-4">
+                <input id="fileInput" type="file" class="w-full p-3 border rounded-lg bg-gray-50" />
+
+                <select id="uploadType" class="w-full p-3 border rounded-lg">
+                    <option value="pdf">PDF</option>
+                    <option value="images">Images</option>
+                    <option value="qna">Q&A</option>
+                    <option value="faq">FAQ</option>
+                </select>
+
+                <button class="bg-blue-600 text-white px-4 py-3 rounded-lg w-full">Upload</button>
+            </form>
+
+            <div id="uploadResult" class="mt-4 text-sm"></div>
+        </div>
+    </section>
+
+
+    <!-- CHAT -->
+    <section id="chatView" class="hidden fade-in">
+        <h2 class="text-2xl font-semibold mb-4">AI Chat Assistant</h2>
+
+        <div class="bg-white shadow rounded-xl p-6 flex flex-col">
+            <div id="chatWindow" class="h-80 overflow-y-auto p-4 bg-gray-50 rounded mb-4"></div>
+
+            <div class="flex gap-3">
+                <input id="chatInput" placeholder="Ask something..." class="flex-1 p-3 border rounded-lg">
+                <button id="sendMsgBtn" class="bg-blue-600 text-white px-6 rounded-lg">Send</button>
+            </div>
+        </div>
+    </section>
+
+</div>
+
+<script>
+// === GLOBAL ===
+const API = "http://127.0.0.1:8000";
+let authToken = sessionStorage.getItem("authToken") || null;
+
+// === VIEW HANDLERS ===
+function switchView(view) {
+    document.querySelectorAll("section").forEach(s => s.classList.add("hidden"));
+    document.getElementById(view + "View").classList.remove("hidden");
+
+    if (view === "dashboard") loadDocuments();
+    if (view === "chat") scrollChat();
+}
+
+function showRegister() {
+    document.getElementById("registerContainer").classList.remove("hidden");
+}
+function hideRegister() {
+    document.getElementById("registerContainer").classList.add("hidden");
+}
+
+// === AUTH ===
+const loginForm = document.getElementById("loginForm");
+const registerForm = document.getElementById("registerForm");
+const authError = document.getElementById("authError");
+
+loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = loginEmail.value;
+    const password = loginPassword.value;
+
+    try {
+        const res = await fetch(`${API}/api/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+
+        if (!res.ok) throw data;
+
+        authToken = data.access_token;
+        sessionStorage.setItem("authToken", authToken);
+        document.getElementById("authSection").classList.add("hidden");
+        document.getElementById("navActions").classList.remove("hidden");
+        switchView("dashboard");
+
+    } catch (err) {
+        authError.textContent = err.detail || "Login failed";
+        authError.classList.remove("hidden");
+    }
+});
+
+registerForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const payload = {
+        email: regEmail.value,
+        password: regPassword.value,
+        name: regName.value,
+        company_name: regCompany.value
+    };
+
+    try {
+        const res = await fetch(`${API}/api/auth/register`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw data;
+
+        authToken = data.access_token;
+        sessionStorage.setItem("authToken", authToken);
+        document.getElementById("authSection").classList.add("hidden");
+        document.getElementById("navActions").classList.remove("hidden");
+        switchView("dashboard");
+    } catch (err) {
+        authError.textContent = err.detail || "Registration failed";
+        authError.classList.remove("hidden");
+    }
+});
+
+// LOGOUT
+logoutBtn.onclick = () => {
+    authToken = null;
+    sessionStorage.removeItem("authToken");
+    location.reload();
+};
+
+// === DOCUMENTS ===
+async function loadDocuments() {
+    const docList = document.getElementById("docList");
+    docList.innerHTML = "<div class='loader mx-auto mt-10'></div>";
+
+    const endpoints = ["pdf", "images", "qna", "faq"];
+    let results = [];
+
+    for (const type of endpoints) {
+        try {
+            const res = await fetch(`${API}/api/knowledge-hub/ingest/${type}/list`, {
+                headers: { Authorization: `Bearer ${authToken}` }
+            });
+            if (!res.ok) {
+                console.warn(`Failed to fetch ${type} documents:`, res.status, res.statusText);
+                continue;
+            }
+            const data = await res.json();
+            // Handle both array and object responses
+            const documents = Array.isArray(data) ? data : (data.documents || []);
+            results = results.concat(documents.map(d => ({ ...d, type })));
+        } catch (err) {
+            console.error(`Error loading ${type} documents:`, err);
+        }
+    }
+
+    docList.innerHTML = "";
+
+    if (results.length === 0) {
+        document.getElementById("emptyDocs").classList.remove("hidden");
+        return;
+    }
+
+    document.getElementById("emptyDocs").classList.add("hidden");
+
+    results.forEach(doc => {
+        docList.innerHTML += `
+            <div class="bg-white p-4 rounded-xl shadow">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="font-semibold">${doc.document_id || doc.id || 'Unknown'}</div>
+                        <div class="text-sm text-gray-500">${doc.type.toUpperCase()}</div>
+                    </div>
+                    <button onclick="deleteDoc('${doc.type}','${doc.document_id || doc.id}')" class="text-red-500">Delete</button>
+                </div>
+                <pre class="bg-gray-50 p-2 rounded mt-3 text-xs">${JSON.stringify(doc.metadata || {}, null, 2)}</pre>
+            </div>`;
+    });
+}
+
+async function deleteDoc(type, id) {
+    if (!confirm("Delete this document?")) return;
+    await fetch(`${API}/api/knowledge-hub/ingest/${type}/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${authToken}` }
+    });
+    loadDocuments();
+}
+
+// === UPLOAD ===
+uploadForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const file = fileInput.files[0];
+    const type = uploadType.value;
+    const uploadResult = document.getElementById("uploadResult");
+
+    const form = new FormData();
+
+    if (type === "qna") form.append("qna_pairs", JSON.stringify([]));
+    else if (type === "faq") form.append("faq_items", JSON.stringify([]));
+    else form.append(type === "images" ? "files" : "file", file);
+
+    uploadResult.textContent = "Uploading...";
+
+    try {
+        const res = await fetch(`${API}/api/knowledge-hub/ingest/${type}`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${authToken}` },
+            body: form
+        });
+        const data = await res.json();
+        if (!res.ok) throw data;
+
+        uploadResult.className = "text-green-600";
+        uploadResult.textContent = `Uploaded successfully. ID: ${data.document_id}`;
+        loadDocuments();
+    } catch (err) {
+        uploadResult.className = "text-red-600";
+        uploadResult.textContent = err.detail || "Upload failed";
+    }
+});
+
+// === CHAT ===
+let conversationId = null;
+
+sendMsgBtn.onclick = sendMessage;
+chatInput.addEventListener("keydown", e => e.key === "Enter" && sendMessage());
+
+async function sendMessage() {
+    const msg = chatInput.value.trim();
+    if (!msg) return;
+    chatInput.value = "";
+
+    appendChat("user", msg);
+
+    try {
+        const res = await fetch(`${API}/api/chat/message`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ message: msg, conversation_id: conversationId })
+        });
+
+        const data = await res.json();
+        conversationId = data.conversation_id;
+
+        appendChat("bot", data.answer);
+    } catch (err) {
+        appendChat("bot", "Error: unable to get response.");
+    }
+}
+
+function appendChat(role, text) {
+    const box = document.getElementById("chatWindow");
+    const bubble = document.createElement("div");
+    bubble.className = `my-2 p-3 rounded-xl max-w-[80%] ${role === "user" ? "ml-auto bg-blue-600 text-white" : "bg-white shadow"}`;
+    bubble.textContent = text;
+    box.appendChild(bubble);
+    scrollChat();
+}
+
+function scrollChat() {
+    const box = document.getElementById("chatWindow");
+    box.scrollTop = box.scrollHeight;
+}
+
+// === INITIALIZATION ===
+// Check if user is already logged in on page load
+function initializeApp() {
+    if (authToken) {
+        // User is logged in, show the app
+        document.getElementById("authSection").classList.add("hidden");
+        document.getElementById("navActions").classList.remove("hidden");
+        switchView("dashboard");
+    } else {
+        // No token, show login screen
+        document.getElementById("authSection").classList.remove("hidden");
+        document.getElementById("navActions").classList.add("hidden");
+    }
+}
+
+// Run on page load
+document.addEventListener("DOMContentLoaded", initializeApp);
+</script>
+
+</body>
+</html>

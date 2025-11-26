@@ -99,19 +99,19 @@ async def delete_pdf(preprocessed_id: str):
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 
-@router.get("/ingest/pdf/{document_id}")
-async def get_pdf(document_id: str):
+@router.get("/ingest/pdf/list")
+async def list_pdfs(request: Request):
     """
-    Retrieve a PDF document by its ID
+    List all PDF documents for the current workspace
     
-    - **document_id**: ID of the document
+    Note: workspace_id is automatically extracted from JWT token
     """
     try:
         db = get_db()
-        document = db.get_document(document_id)
-        if not document:
-            raise HTTPException(status_code=404, detail="Document not found")
-        return document
+        user = request.state.user
+        workspace_id = user["workspace_id"]
+        docs = db.list_documents(workspace_id=workspace_id, document_type="pdf")
+        return {"documents": docs}
     except Exception as e:
-        logger.error(f"Error retrieving PDF: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        logger.error(f"Error listing PDFs: {e}")
+        raise HTTPException(500, "Internal Server Error")
