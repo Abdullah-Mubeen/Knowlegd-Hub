@@ -1,374 +1,1627 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Knowledge Hub — Minimalist Interactive UI</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Hub</title>
     <style>
-        /* Smooth animations */
-        .fade-in { animation: fadeIn 0.4s ease forwards; opacity: 0; }
-        @keyframes fadeIn { to { opacity: 1; } }
-
-        .scale-in { animation: scaleIn 0.4s ease forwards; opacity: 0; transform: scale(0.92); }
-        @keyframes scaleIn { to { opacity: 1; transform: scale(1); } }
-
-        .loader {
-            width: 18px; height: 18px;
-            border: 2px solid #3b82f6;
-            border-top-color: transparent;
-            border-radius: 50%;
-            animation: spin 0.7s linear infinite;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
+
+        :root {
+            --bg: #ffffff;
+            --bg-secondary: #f9f9f9;
+            --bg-tertiary: #f3f3f3;
+            --text: #1a1a1a;
+            --text-secondary: #6b7280;
+            --text-tertiary: #9ca3af;
+            --border: #e5e7eb;
+            --border-light: #f3f4f6;
+            --accent: #000000;
+            --accent-light: #374151;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --primary: #000000;
+            --primary-hover: #1f2937;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        /* ANIMATIONS */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .fade-in { animation: fadeIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+        .slide-in { animation: slideInLeft 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+
+        /* NAVBAR */
+        .navbar {
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+            padding: 1.25rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        .nav-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.8px;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .nav-logo svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .nav-items {
+            display: flex;
+            gap: 2.5rem;
+            align-items: center;
+        }
+
+        .nav-link {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            padding: 0.5rem 0;
+            position: relative;
+        }
+
+        .nav-link:hover {
+            color: var(--text);
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--accent);
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        .nav-logout {
+            color: var(--error);
+            padding: 0.5rem 1rem;
+            background: rgba(239, 68, 68, 0.1);
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-logout:hover {
+            background: var(--error);
+            color: white;
+        }
+
+        .nav-logout::after {
+            display: none;
+        }
+
+        /* MAIN */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 3rem 2.5rem;
+        }
+
+        section {
+            display: none;
+        }
+
+        section.active {
+            display: block;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        /* HEADER */
+        .header {
+            margin-bottom: 2.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .header-content h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.8px;
+            color: var(--accent);
+        }
+
+        .header-content p {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .header-action {
+            display: flex;
+            gap: 1rem;
+        }
+
+        /* CARDS */
+        .card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: var(--accent-light);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+        }
+
+        .card h2 {
+            font-size: 1.25rem;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        /* BUTTONS */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.875rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-secondary);
+            border-color: var(--accent);
+        }
+
+        .btn-danger {
+            background: var(--error);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--accent);
+            border: 1.5px solid var(--accent);
+        }
+
+        .btn-outline:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+        }
+
+        /* FORMS */
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="file"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 0.875rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        input::placeholder,
+        textarea::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: var(--bg);
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.875rem;
+            color: var(--text);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        /* AUTH */
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--bg) 0%, var(--bg-secondary) 100%);
+        }
+
+        .auth-box {
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .auth-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .auth-logo {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+        }
+
+        .auth-logo svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .auth-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--accent);
+        }
+
+        .auth-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 400;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 1.5rem 0;
+        }
+
+        .toggle-auth {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .toggle-auth button {
+            background: none;
+            border: none;
+            color: var(--accent);
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: underline;
+            transition: opacity 0.3s;
+        }
+
+        .toggle-auth button:hover {
+            opacity: 0.7;
+        }
+
+        /* GRID */
+        .grid {
+            display: grid;
+            gap: 2rem;
+        }
+
+        .grid-2 {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        }
+
+        /* DOCUMENTS */
+        .doc-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.75rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .doc-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--accent);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .doc-card:hover::before {
+            transform: translateX(0);
+        }
+
+        .doc-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .doc-icon {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+        }
+
+        .doc-icon svg {
+            width: 28px;
+            height: 28px;
+            stroke: var(--accent);
+            stroke-width: 1.5;
+        }
+
+        .doc-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            word-break: break-word;
+            color: var(--accent);
+            font-size: 1rem;
+        }
+
+        .doc-type {
+            display: inline-block;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            padding: 0.375rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+            letter-spacing: 0.5px;
+        }
+
+        .doc-info {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: auto;
+            margin-bottom: 1rem;
+        }
+
+        .doc-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: auto;
+        }
+
+        .doc-actions .btn {
+            flex: 1;
+            text-align: center;
+            justify-content: center;
+        }
+
+        /* EMPTY STATE */
+        .empty {
+            text-align: center;
+            padding: 4rem 2rem;
+            grid-column: 1 / -1;
+        }
+
+        .empty-icon {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+        }
+
+        .empty-icon svg {
+            width: 40px;
+            height: 40px;
+            stroke: var(--text-tertiary);
+            stroke-width: 1.5;
+        }
+
+        .empty-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--accent);
+        }
+
+        .empty-text {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+        }
+
+        /* TYPE SELECTOR */
+        .type-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .type-btn {
+            padding: 1.5rem;
+            border: 2px solid var(--border);
+            background: var(--bg);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-family: inherit;
+            font-weight: 500;
+        }
+
+        .type-btn:hover {
+            border-color: var(--accent);
+            background: var(--bg-secondary);
+        }
+
+        .type-btn.active {
+            border-color: var(--accent);
+            background: var(--accent);
+            color: white;
+        }
+
+        .type-btn svg {
+            width: 32px;
+            height: 32px;
+            display: block;
+            margin: 0 auto 0.75rem;
+            stroke: currentColor;
+            stroke-width: 1.5;
+            fill: none;
+        }
+
+        .type-btn.active svg {
+            stroke: white;
+        }
+
+        .type-btn span {
+            display: block;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        /* Q&A / FAQ */
+        .pair-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .pair-item:hover {
+            border-color: var(--accent);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+        }
+
+        .pair-number {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: var(--accent);
+            color: white;
+            padding: 0.375rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .pair-remove {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            background: var(--error);
+            color: white;
+            border: none;
+            padding: 0.375rem 0.75rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: background 0.3s ease;
+        }
+
+        .pair-remove:hover {
+            background: #dc2626;
+        }
+
+        .pair-content {
+            margin-top: 2.5rem;
+        }
+
+        .pair-content input,
+        .pair-content textarea {
+            margin-bottom: 1rem;
+        }
+
+        /* IMAGE PREVIEW */
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .image-item {
+            position: relative;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            aspect-ratio: 1;
+        }
+
+        .image-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .image-remove {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: var(--error);
+            color: white;
+            border: none;
+            padding: 0.375rem 0.75rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: background 0.3s ease;
+        }
+
+        .image-remove:hover {
+            background: #dc2626;
+        }
+
+        /* CHAT */
+        .chat-box {
+            display: flex;
+            flex-direction: column;
+            height: 600px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            background: var(--bg);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+        }
+
+        .chat-window {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            background: var(--bg);
+        }
+
+        .chat-message {
+            margin-bottom: 1rem;
+            display: flex;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .chat-message.user {
+            justify-content: flex-end;
+        }
+
+        .message-bubble {
+            display: inline-block;
+            max-width: 70%;
+            padding: 0.875rem 1.25rem;
+            border-radius: 10px;
+            word-wrap: break-word;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .chat-message.user .message-bubble {
+            background: var(--accent);
+            color: white;
+            border-radius: 16px 16px 4px 16px;
+        }
+
+        .chat-message.bot .message-bubble {
+            background: var(--bg-secondary);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 4px 16px 16px 16px;
+        }
+
+        .chat-input {
+            display: flex;
+            gap: 1rem;
+            padding: 1.5rem;
+            border-top: 1px solid var(--border);
+            background: var(--bg);
+        }
+
+        .chat-input input {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .chat-input button {
+            width: auto;
+        }
+
+        /* ALERTS */
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border-left: 4px solid;
+            font-size: 0.9rem;
+        }
+
+        .alert-success {
+            background: #ecfdf5;
+            color: #065f46;
+            border-left-color: var(--success);
+        }
+
+        .alert-error {
+            background: #fef2f2;
+            color: #7f1d1d;
+            border-left-color: var(--error);
+        }
+
+        /* LOADING */
+        .loader {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            backdrop-filter: blur(3px);
+        }
+
+        .overlay.active {
+            display: flex;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            z-index: 200;
+            animation: slideInLeft 0.3s ease-out;
+            font-size: 0.9rem;
+        }
+
+        .toast-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .toast-error {
+            background: var(--error);
+            color: white;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1.5rem;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1.5rem;
+            }
+
+            .header-content h1 {
+                font-size: 1.5rem;
+            }
+
+            .nav-items {
+                gap: 1rem;
+                font-size: 0.9rem;
+            }
+
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+
+            .type-selector {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .chat-box {
+                height: 400px;
+            }
+
+            .toast {
+                bottom: 1rem;
+                right: 1rem;
+                left: 1rem;
+            }
+
+            .message-bubble {
+                max-width: 100%;
+            }
+        }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-900 min-h-screen flex flex-col">
+<body>
 
 <!-- NAVBAR -->
-<nav class="bg-white shadow fixed w-full z-20 top-0 left-0 px-6 py-4 flex justify-between items-center">
-    <h1 class="text-xl font-bold tracking-tight">Knowledge Hub</h1>
-    <div id="navActions" class="flex items-center gap-4 hidden">
-        <button onclick="switchView('dashboard')" class="hover:text-blue-600">Dashboard</button>
-        <button onclick="switchView('upload')" class="hover:text-blue-600">Upload</button>
-        <button onclick="switchView('chat')" class="hover:text-blue-600">Chat</button>
-        <button id="logoutBtn" class="text-red-500 hover:text-red-600">Logout</button>
+<nav class="navbar">
+    <div class="nav-wrapper">
+        <div class="nav-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            Knowledge Hub
+        </div>
+        <div id="navActions" class="nav-items" style="display: none;">
+            <button class="nav-link" onclick="switchView('dashboard')">Dashboard</button>
+            <button class="nav-link" onclick="switchView('upload')">Upload</button>
+            <button class="nav-link" onclick="switchView('chat')">Chat</button>
+            <button id="logoutBtn" class="nav-logout nav-link">Logout</button>
+        </div>
     </div>
 </nav>
 
-<!-- MAIN CONTENT -->
-<div class="pt-24 px-6 max-w-6xl w-full mx-auto"> 
+<!-- CONTAINER -->
+<div class="container">
 
-    <!-- AUTH WRAPPER -->
-    <section id="authSection" class="max-w-md mx-auto fade-in">
-        <div class="bg-white shadow-lg rounded-2xl p-8">
-            <h2 class="text-2xl font-semibold text-center mb-6">Welcome Back</h2>
-            <div id="authError" class="hidden text-red-500 text-center mb-4"></div>
+    <!-- AUTH -->
+    <section id="authSection" class="active">
+        <div class="auth-container fade-in">
+            <div class="auth-box">
+                <!-- LOGIN -->
+                <div id="loginCard" class="auth-card">
+                    <div class="auth-header">
+                        <div class="auth-logo">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                            </svg>
+                        </div>
+                        <div class="auth-title">Welcome Back</div>
+                        <div class="auth-subtitle">Sign in to your knowledge base</div>
+                    </div>
 
-            <!-- LOGIN -->
-            <form id="loginForm" class="space-y-4">
-                <input id="loginEmail" type="email" placeholder="Email" class="w-full p-3 border rounded-lg" required>
-                <input id="loginPassword" type="password" placeholder="Password" class="w-full p-3 border rounded-lg" required>
-                <button class="w-full bg-blue-600 hover:bg-blue-700 rounded-lg text-white py-3">Login</button>
-            </form>
+                    <div id="authError" class="hidden alert alert-error" style="display: none;"></div>
 
-            <p class="text-sm text-center mt-4">Don't have an account?
-                <button onclick="showRegister()" class="text-blue-600 hover:underline">Create one</button>
-            </p>
-        </div>
+                    <form id="loginForm" class="space-y-4">
+                        <div class="form-group">
+                            <label>Email Address</label>
+                            <input id="loginEmail" type="email" placeholder="you@example.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input id="loginPassword" type="password" placeholder="••••••••" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In</button>
+                    </form>
 
-        <!-- REGISTER -->
-        <div id="registerContainer" class="bg-white shadow-lg rounded-2xl p-8 hidden mt-6 scale-in">
-            <h2 class="text-2xl font-semibold text-center mb-6">Create Account</h2>
-            <form id="registerForm" class="space-y-4">
-                <input id="regEmail" type="email" placeholder="Email" class="w-full p-3 border rounded-lg" required>
-                <input id="regPassword" type="password" placeholder="Password" class="w-full p-3 border rounded-lg" required>
-                <input id="regName" placeholder="Name (optional)" class="w-full p-3 border rounded-lg" />
-                <input id="regCompany" placeholder="Company (optional)" class="w-full p-3 border rounded-lg" />
+                    <hr class="divider">
 
-                <button class="w-full bg-green-600 hover:bg-green-700 rounded-lg text-white py-3">Register</button>
-            </form>
-            <p class="text-sm text-center mt-4">
-                Already have an account?
-                <button onclick="hideRegister()" class="text-blue-600 hover:underline">Login</button>
-            </p>
+                    <div class="toggle-auth">
+                        New here? <button onclick="showRegister()">Create an account</button>
+                    </div>
+                </div>
+
+                <!-- REGISTER -->
+                <div id="registerCard" class="auth-card" style="display: none;">
+                    <div class="auth-header">
+                        <div class="auth-logo">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                            </svg>
+                        </div>
+                        <div class="auth-title">Get Started</div>
+                        <div class="auth-subtitle">Create your account</div>
+                    </div>
+
+                    <form id="registerForm" class="space-y-4">
+                        <div class="form-group">
+                            <label>Email Address</label>
+                            <input id="regEmail" type="email" placeholder="you@example.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input id="regPassword" type="password" placeholder="••••••••" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Full Name <span style="color: var(--text-tertiary);">(optional)</span></label>
+                            <input id="regName" type="text" placeholder="John Doe">
+                        </div>
+                        <div class="form-group">
+                            <label>Company <span style="color: var(--text-tertiary);">(optional)</span></label>
+                            <input id="regCompany" type="text" placeholder="Your Company">
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Create Account</button>
+                    </form>
+
+                    <hr class="divider">
+
+                    <div class="toggle-auth">
+                        Already have an account? <button onclick="hideRegister()">Sign in</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </section>
-
 
     <!-- DASHBOARD -->
-    <section id="dashboardView" class="hidden fade-in">
-        <h2 class="text-2xl font-semibold mb-4">Your Documents</h2>
-        <div id="docList" class="grid md:grid-cols-2 gap-4"></div>
-        <div id="emptyDocs" class="text-gray-500 text-center hidden">No documents uploaded yet.</div>
-    </section>
+    <section id="dashboardView">
+        <div class="header slide-in">
+            <div class="header-content">
+                <h1>Your Documents</h1>
+                <p>Manage and organize your knowledge base</p>
+            </div>
+            <div class="header-action">
+                <button onclick="switchView('upload')" class="btn btn-primary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 5v14M5 12h14"></path>
+                    </svg>
+                    Upload
+                </button>
+            </div>
+        </div>
 
+        <div id="docList" class="grid grid-3"></div>
 
-    <!-- UPLOAD -->
-    <section id="uploadView" class="hidden fade-in">
-        <h2 class="text-2xl font-semibold mb-6">Upload Documents</h2>
-
-        <div class="bg-white p-6 rounded-xl shadow">
-            <form id="uploadForm" class="space-y-4">
-                <input id="fileInput" type="file" class="w-full p-3 border rounded-lg bg-gray-50" />
-
-                <select id="uploadType" class="w-full p-3 border rounded-lg">
-                    <option value="pdf">PDF</option>
-                    <option value="images">Images</option>
-                    <option value="qna">Q&A</option>
-                    <option value="faq">FAQ</option>
-                </select>
-
-                <button class="bg-blue-600 text-white px-4 py-3 rounded-lg w-full">Upload</button>
-            </form>
-
-            <div id="uploadResult" class="mt-4 text-sm"></div>
+        <div id="emptyDocs" class="card empty" style="display: none;">
+            <div class="empty-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+            </div>
+            <div class="empty-title">No documents yet</div>
+            <div class="empty-text">Start by uploading your first document to build your knowledge base</div>
+            <button onclick="switchView('upload')" class="btn btn-primary">Upload Document</button>
         </div>
     </section>
 
+    <!-- UPLOAD -->
+    <section id="uploadView">
+        <div class="header slide-in">
+            <div class="header-content">
+                <h1>Upload Documents</h1>
+                <p>Choose a document type and upload your content</p>
+            </div>
+        </div>
+
+        <!-- TYPE SELECTOR -->
+        <div class="type-selector">
+            <button class="type-btn active" onclick="selectType('pdf')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <text x="8" y="18" font-size="8" fill="currentColor">PDF</text>
+                </svg>
+                <span>PDF</span>
+            </button>
+            <button class="type-btn" onclick="selectType('images')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+                <span>Images</span>
+            </button>
+            <button class="type-btn" onclick="selectType('qna')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    <circle cx="9" cy="10" r="1"></circle>
+                    <circle cx="12" cy="10" r="1"></circle>
+                    <circle cx="15" cy="10" r="1"></circle>
+                </svg>
+                <span>Q&A</span>
+            </button>
+            <button class="type-btn" onclick="selectType('faq')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"></path>
+                    <text x="10" y="16" font-size="8" fill="currentColor">?</text>
+                </svg>
+                <span>FAQ</span>
+            </button>
+        </div>
+
+        <!-- PDF -->
+        <div id="pdfSection" class="card">
+            <h2>Upload PDF Document</h2>
+            <form id="pdfForm">
+                <div class="form-group">
+                    <label>Select PDF File</label>
+                    <input id="pdfFile" type="file" accept=".pdf" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Upload PDF</button>
+            </form>
+            <div id="pdfResult" class="hidden"></div>
+        </div>
+
+        <!-- IMAGES -->
+        <div id="imagesSection" class="card" style="display: none;">
+            <h2>Upload Images</h2>
+            <form id="imagesForm">
+                <div class="form-group">
+                    <label>Select Images</label>
+                    <input id="imagesFile" type="file" accept="image/*" multiple required>
+                </div>
+                <div id="imagePreview" class="image-grid" style="display: none;"></div>
+                <button type="submit" class="btn btn-primary">Upload Images</button>
+            </form>
+            <div id="imagesResult" class="hidden"></div>
+        </div>
+
+        <!-- Q&A -->
+        <div id="qnaSection" class="card" style="display: none;">
+            <h2>Add Question & Answer Pairs</h2>
+            <div id="qnaContainer"></div>
+            <div style="display: flex; gap: 1rem;">
+                <button type="button" onclick="addQnaPair()" class="btn btn-secondary">+ Add Pair</button>
+                <button type="button" onclick="submitQna()" class="btn btn-primary">Submit Q&A</button>
+            </div>
+            <div id="qnaResult" class="hidden" style="margin-top: 1rem;"></div>
+        </div>
+
+        <!-- FAQ -->
+        <div id="faqSection" class="card" style="display: none;">
+            <h2>Add FAQ Items</h2>
+            <div class="form-group">
+                <label>Category</label>
+                <input id="faqCategory" type="text" placeholder="e.g., General, Billing, Support">
+            </div>
+            <div id="faqContainer"></div>
+            <div style="display: flex; gap: 1rem;">
+                <button type="button" onclick="addFaqItem()" class="btn btn-secondary">+ Add Item</button>
+                <button type="button" onclick="submitFaq()" class="btn btn-primary">Submit FAQ</button>
+            </div>
+            <div id="faqResult" class="hidden" style="margin-top: 1rem;"></div>
+        </div>
+    </section>
 
     <!-- CHAT -->
-    <section id="chatView" class="hidden fade-in">
-        <h2 class="text-2xl font-semibold mb-4">AI Chat Assistant</h2>
+    <section id="chatView">
+        <div class="header slide-in">
+            <div class="header-content">
+                <h1>Chat with Your Knowledge Base</h1>
+                <p>Ask questions and get instant answers from your documents</p>
+            </div>
+        </div>
 
-        <div class="bg-white shadow rounded-xl p-6 flex flex-col">
-            <div id="chatWindow" class="h-80 overflow-y-auto p-4 bg-gray-50 rounded mb-4"></div>
-
-            <div class="flex gap-3">
-                <input id="chatInput" placeholder="Ask something..." class="flex-1 p-3 border rounded-lg">
-                <button id="sendMsgBtn" class="bg-blue-600 text-white px-6 rounded-lg">Send</button>
+        <div class="chat-box">
+            <div id="chatWindow" class="chat-window"></div>
+            <div class="chat-input">
+                <input id="chatInput" type="text" placeholder="Ask something about your documents...">
+                <button id="sendBtn" class="btn btn-primary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                    Send
+                </button>
             </div>
         </div>
     </section>
 
 </div>
 
+<!-- OVERLAY -->
+<div id="overlay" class="overlay">
+    <div class="loader"></div>
+</div>
+
 <script>
-// === GLOBAL ===
 const API = "http://127.0.0.1:8000";
 let authToken = sessionStorage.getItem("authToken") || null;
+let currentUser = JSON.parse(sessionStorage.getItem("currentUser")) || null;
+let conversationId = null;
+let qnaCount = 0;
+let faqCount = 0;
 
-// === VIEW HANDLERS ===
+// SVG ICONS
+const ICONS = {
+    pdf: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>`,
+    images: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`,
+    qna: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><circle cx="9" cy="10" r="1"></circle><circle cx="12" cy="10" r="1"></circle><circle cx="15" cy="10" r="1"></circle></svg>`,
+    faq: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><text x="11" y="16" font-size="10" fill="currentColor">?</text></svg>`,
+    delete: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`
+};
+
+// UTILS
+function showToast(msg, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+function showLoading(show) {
+    document.getElementById('overlay').classList.toggle('active', show);
+}
+
 function switchView(view) {
-    document.querySelectorAll("section").forEach(s => s.classList.add("hidden"));
-    document.getElementById(view + "View").classList.remove("hidden");
-
-    if (view === "dashboard") loadDocuments();
-    if (view === "chat") scrollChat();
+    if (!authToken && view !== 'auth') {
+        showToast('Please login first', 'error');
+        return;
+    }
+    document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+    document.getElementById(view + 'View').classList.add('active');
+    if (view === 'dashboard') loadDocuments();
 }
 
 function showRegister() {
-    document.getElementById("registerContainer").classList.remove("hidden");
+    document.getElementById('loginCard').style.display = 'none';
+    document.getElementById('registerCard').style.display = 'block';
 }
+
 function hideRegister() {
-    document.getElementById("registerContainer").classList.add("hidden");
+    document.getElementById('registerCard').style.display = 'none';
+    document.getElementById('loginCard').style.display = 'block';
 }
 
-// === AUTH ===
-const loginForm = document.getElementById("loginForm");
-const registerForm = document.getElementById("registerForm");
-const authError = document.getElementById("authError");
+// AUTH
+const authError = document.getElementById('authError');
 
-loginForm.addEventListener("submit", async (e) => {
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = loginEmail.value;
-    const password = loginPassword.value;
+    showLoading(true);
 
     try {
         const res = await fetch(`${API}/api/auth/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password })
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: document.getElementById('loginEmail').value,
+                password: document.getElementById('loginPassword').value
+            })
         });
-        const data = await res.json();
 
-        if (!res.ok) throw data;
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Login failed');
 
         authToken = data.access_token;
-        sessionStorage.setItem("authToken", authToken);
-        document.getElementById("authSection").classList.add("hidden");
-        document.getElementById("navActions").classList.remove("hidden");
-        switchView("dashboard");
+        currentUser = { email: data.email, user_id: data.user_id, workspace_id: data.workspace_id };
+        sessionStorage.setItem('authToken', authToken);
+        sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
 
+        authError.style.display = 'none';
+        document.getElementById('authSection').classList.remove('active');
+        document.getElementById('navActions').style.display = 'flex';
+        showToast('✓ Login successful');
+        switchView('dashboard');
     } catch (err) {
-        authError.textContent = err.detail || "Login failed";
-        authError.classList.remove("hidden");
+        authError.textContent = err.message;
+        authError.style.display = 'block';
+    } finally {
+        showLoading(false);
     }
 });
 
-registerForm.addEventListener("submit", async (e) => {
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-
-    const payload = {
-        email: regEmail.value,
-        password: regPassword.value,
-        name: regName.value,
-        company_name: regCompany.value
-    };
+    showLoading(true);
 
     try {
         const res = await fetch(`${API}/api/auth/register`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: document.getElementById('regEmail').value,
+                password: document.getElementById('regPassword').value,
+                name: document.getElementById('regName').value || undefined,
+                company_name: document.getElementById('regCompany').value || undefined
+            })
         });
+
         const data = await res.json();
-        if (!res.ok) throw data;
+        if (!res.ok) throw new Error(data.detail || 'Registration failed');
 
         authToken = data.access_token;
-        sessionStorage.setItem("authToken", authToken);
-        document.getElementById("authSection").classList.add("hidden");
-        document.getElementById("navActions").classList.remove("hidden");
-        switchView("dashboard");
+        currentUser = { email: data.email, user_id: data.user_id, workspace_id: data.workspace_id };
+        sessionStorage.setItem('authToken', authToken);
+        sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+
+        authError.style.display = 'none';
+        document.getElementById('authSection').classList.remove('active');
+        document.getElementById('navActions').style.display = 'flex';
+        showToast('✓ Account created');
+        switchView('dashboard');
     } catch (err) {
-        authError.textContent = err.detail || "Registration failed";
-        authError.classList.remove("hidden");
+        authError.textContent = err.message;
+        authError.style.display = 'block';
+    } finally {
+        showLoading(false);
     }
 });
 
-// LOGOUT
-logoutBtn.onclick = () => {
+document.getElementById('logoutBtn').addEventListener('click', () => {
     authToken = null;
-    sessionStorage.removeItem("authToken");
-    location.reload();
-};
+    currentUser = null;
+    sessionStorage.clear();
+    showToast('Logged out');
+    setTimeout(() => location.reload(), 500);
+});
 
-// === DOCUMENTS ===
+// DASHBOARD
 async function loadDocuments() {
-    const docList = document.getElementById("docList");
-    docList.innerHTML = "<div class='loader mx-auto mt-10'></div>";
+    const docList = document.getElementById('docList');
+    docList.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 2rem;"><div class="loader"></div></div>';
 
-    const endpoints = ["pdf", "images", "qna", "faq"];
-    let results = [];
+    const types = ['pdf', 'images', 'qna', 'faq'];
+    let docs = [];
 
-    for (const type of endpoints) {
+    for (const type of types) {
         try {
             const res = await fetch(`${API}/api/knowledge-hub/ingest/${type}/list`, {
-                headers: { Authorization: `Bearer ${authToken}` }
+                headers: { 'Authorization': `Bearer ${authToken}` }
             });
-            if (!res.ok) {
-                console.warn(`Failed to fetch ${type} documents:`, res.status, res.statusText);
-                continue;
+            if (res.ok) {
+                const data = await res.json();
+                const items = Array.isArray(data) ? data : (data.documents || []);
+                docs = docs.concat(items.map(d => ({ ...d, type })));
             }
-            const data = await res.json();
-            // Handle both array and object responses
-            const documents = Array.isArray(data) ? data : (data.documents || []);
-            results = results.concat(documents.map(d => ({ ...d, type })));
         } catch (err) {
-            console.error(`Error loading ${type} documents:`, err);
+            console.error(`Error loading ${type}:`, err);
         }
     }
 
-    docList.innerHTML = "";
-
-    if (results.length === 0) {
-        document.getElementById("emptyDocs").classList.remove("hidden");
+    docList.innerHTML = '';
+    if (docs.length === 0) {
+        document.getElementById('emptyDocs').style.display = 'block';
         return;
     }
+    document.getElementById('emptyDocs').style.display = 'none';
 
-    document.getElementById("emptyDocs").classList.add("hidden");
-
-    results.forEach(doc => {
+    docs.forEach(doc => {
+        const id = doc.document_id || doc.id || 'Unknown';
+        const icon = ICONS[doc.type] || ICONS.pdf;
         docList.innerHTML += `
-            <div class="bg-white p-4 rounded-xl shadow">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <div class="font-semibold">${doc.document_id || doc.id || 'Unknown'}</div>
-                        <div class="text-sm text-gray-500">${doc.type.toUpperCase()}</div>
-                    </div>
-                    <button onclick="deleteDoc('${doc.type}','${doc.document_id || doc.id}')" class="text-red-500">Delete</button>
+            <div class="doc-card">
+                <div class="doc-icon">${icon}</div>
+                <div class="doc-title">${id}</div>
+                <div class="doc-type">${doc.type}</div>
+                <div class="doc-info">${doc.total_pages ? doc.total_pages + ' pages' : doc.type === 'images' ? 'Image' : ''}</div>
+                <div class="doc-actions">
+                    <button onclick="deleteDoc('${doc.type}', '${id}')" class="btn btn-danger btn-small">Delete</button>
                 </div>
-                <pre class="bg-gray-50 p-2 rounded mt-3 text-xs">${JSON.stringify(doc.metadata || {}, null, 2)}</pre>
-            </div>`;
+            </div>
+        `;
     });
 }
 
 async function deleteDoc(type, id) {
-    if (!confirm("Delete this document?")) return;
-    await fetch(`${API}/api/knowledge-hub/ingest/${type}/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${authToken}` }
-    });
-    loadDocuments();
+    if (!confirm('Delete this document?')) return;
+    showLoading(true);
+    try {
+        const res = await fetch(`${API}/api/knowledge-hub/ingest/${type}/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (res.ok) {
+            showToast('✓ Document deleted');
+            loadDocuments();
+        }
+    } catch (err) {
+        showToast('Error deleting document', 'error');
+    } finally {
+        showLoading(false);
+    }
 }
 
-// === UPLOAD ===
-uploadForm.addEventListener("submit", async (e) => {
+// UPLOAD
+function selectType(type) {
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+    event.target.closest('.type-btn').classList.add('active');
+    document.querySelectorAll('[id$="Section"]').forEach(s => s.style.display = 'none');
+    document.getElementById(type + 'Section').style.display = 'block';
+}
+
+// PDF
+document.getElementById('pdfForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-
-    const file = fileInput.files[0];
-    const type = uploadType.value;
-    const uploadResult = document.getElementById("uploadResult");
-
+    const file = document.getElementById('pdfFile').files[0];
+    if (!file) { showToast('Select PDF', 'error'); return; }
+    
+    showLoading(true);
     const form = new FormData();
-
-    if (type === "qna") form.append("qna_pairs", JSON.stringify([]));
-    else if (type === "faq") form.append("faq_items", JSON.stringify([]));
-    else form.append(type === "images" ? "files" : "file", file);
-
-    uploadResult.textContent = "Uploading...";
-
+    form.append('file', file);
+    
     try {
-        const res = await fetch(`${API}/api/knowledge-hub/ingest/${type}`, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${authToken}` },
+        const res = await fetch(`${API}/api/knowledge-hub/ingest/pdf`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${authToken}` },
             body: form
         });
         const data = await res.json();
-        if (!res.ok) throw data;
-
-        uploadResult.className = "text-green-600";
-        uploadResult.textContent = `Uploaded successfully. ID: ${data.document_id}`;
-        loadDocuments();
+        if (!res.ok) throw new Error(data.detail || 'Failed');
+        
+        showToast('✓ PDF uploaded successfully');
+        document.getElementById('pdfForm').reset();
+        setTimeout(() => switchView('dashboard'), 1000);
     } catch (err) {
-        uploadResult.className = "text-red-600";
-        uploadResult.textContent = err.detail || "Upload failed";
+        showToast(err.message, 'error');
+    } finally {
+        showLoading(false);
     }
 });
 
-// === CHAT ===
-let conversationId = null;
+// IMAGES
+document.getElementById('imagesFile')?.addEventListener('change', (e) => {
+    const preview = document.getElementById('imagePreview');
+    preview.innerHTML = '';
+    Array.from(e.target.files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const item = document.createElement('div');
+            item.className = 'image-item';
+            item.innerHTML = `<img src="${ev.target.result}">`;
+            preview.appendChild(item);
+        };
+        reader.readAsDataURL(file);
+    });
+    preview.style.display = preview.children.length > 0 ? 'grid' : 'none';
+});
 
-sendMsgBtn.onclick = sendMessage;
-chatInput.addEventListener("keydown", e => e.key === "Enter" && sendMessage());
+document.getElementById('imagesForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const files = document.getElementById('imagesFile').files;
+    if (files.length === 0) { showToast('Select images', 'error'); return; }
+    
+    showLoading(true);
+    const form = new FormData();
+    Array.from(files).forEach(f => form.append('files', f));
+    
+    try {
+        const res = await fetch(`${API}/api/knowledge-hub/ingest/images`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${authToken}` },
+            body: form
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed');
+        
+        showToast(`✓ ${files.length} images uploaded`);
+        document.getElementById('imagesForm').reset();
+        document.getElementById('imagePreview').style.display = 'none';
+        setTimeout(() => switchView('dashboard'), 1000);
+    } catch (err) {
+        showToast(err.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+});
+
+// Q&A
+function addQnaPair() {
+    qnaCount++;
+    const container = document.getElementById('qnaContainer');
+    const item = document.createElement('div');
+    item.className = 'pair-item qna-item';
+    item.id = `qna-${qnaCount}`;
+    item.innerHTML = `
+        <button type="button" class="pair-remove" onclick="document.getElementById('qna-${qnaCount}').remove()">Remove</button>
+        <div class="pair-number">Q&A #${qnaCount}</div>
+        <div class="pair-content">
+            <input type="text" placeholder="Enter your question" class="qna-q" required>
+            <input type="text" placeholder="Enter the answer" class="qna-a" required>
+        </div>
+    `;
+    container.appendChild(item);
+}
+
+function submitQna() {
+    const items = document.querySelectorAll('.qna-item');
+    if (items.length === 0) { showToast('Add at least one Q&A pair', 'error'); return; }
+    
+    const data = Array.from(items).map(item => ({
+        question: item.querySelector('.qna-q').value,
+        answer: item.querySelector('.qna-a').value
+    }));
+
+    uploadQna(data);
+}
+
+async function uploadQna(data) {
+    showLoading(true);
+    
+    try {
+        const res = await fetch(`${API}/api/knowledge-hub/ingest/qna`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}` 
+            },
+            body: JSON.stringify({
+                qna_pairs: data.map(item => ({
+                    question: item.question,
+                    answer: item.answer,
+                    category: "General"  // Add default category
+                }))
+            })
+        });
+        const resp = await res.json();
+        if (!res.ok) throw new Error(resp.detail || 'Failed');
+        
+        showToast(`✓ ${data.length} Q&A pairs uploaded`);
+        document.getElementById('qnaContainer').innerHTML = '';
+        qnaCount = 0;
+        setTimeout(() => switchView('dashboard'), 1000);
+    } catch (err) {
+        showToast(err.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// FAQ
+function addFaqItem() {
+    faqCount++;
+    const container = document.getElementById('faqContainer');
+    const item = document.createElement('div');
+    item.className = 'pair-item faq-item';
+    item.id = `faq-${faqCount}`;
+    item.innerHTML = `
+        <button type="button" class="pair-remove" onclick="document.getElementById('faq-${faqCount}').remove()">Remove</button>
+        <div class="pair-number">FAQ #${faqCount}</div>
+        <div class="pair-content">
+            <input type="text" placeholder="Enter your question" class="faq-q" required>
+            <textarea placeholder="Enter the answer" class="faq-a" required></textarea>
+        </div>
+    `;
+    container.appendChild(item);
+}
+
+function submitFaq() {
+    const items = document.querySelectorAll('.faq-item');
+    if (items.length === 0) { showToast('Add at least one FAQ item', 'error'); return; }
+    
+    const data = Array.from(items).map(item => ({
+        question: item.querySelector('.faq-q').value,
+        answer: item.querySelector('.faq-a').value
+    }));
+    const category = document.getElementById('faqCategory').value || 'General';
+
+    uploadFaq(data, category);
+}
+
+async function uploadFaq(data, category) {
+    showLoading(true);
+    
+    try {
+        const res = await fetch(`${API}/api/knowledge-hub/ingest/faq`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}` 
+            },
+            body: JSON.stringify({
+                category: category,
+                faq_items: data.map(item => ({
+                    question: item.question,
+                    answer: item.answer
+                }))
+            })
+        });
+        const resp = await res.json();
+        if (!res.ok) throw new Error(resp.detail || 'Failed');
+        
+        showToast(`✓ ${data.length} FAQ items uploaded`);
+        document.getElementById('faqContainer').innerHTML = '';
+        document.getElementById('faqCategory').value = '';
+        faqCount = 0;
+        setTimeout(() => switchView('dashboard'), 1000);
+    } catch (err) {
+        showToast(err.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// CHAT
+document.getElementById('sendBtn')?.addEventListener('click', sendMessage);
+document.getElementById('chatInput')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMessage();
+});
 
 async function sendMessage() {
-    const msg = chatInput.value.trim();
+    const msg = document.getElementById('chatInput').value.trim();
     if (!msg) return;
-    chatInput.value = "";
-
-    appendChat("user", msg);
-
+    
+    document.getElementById('chatInput').value = '';
+    const chatWindow = document.getElementById('chatWindow');
+    const userMsg = document.createElement('div');
+    userMsg.className = 'chat-message user';
+    userMsg.innerHTML = `<div class="message-bubble">${msg}</div>`;
+    chatWindow.appendChild(userMsg);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+    
+    showLoading(true);
     try {
         const res = await fetch(`${API}/api/chat/message`, {
-            method: "POST",
+            method: 'POST',
             headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${authToken}`
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
             },
-            body: JSON.stringify({ message: msg, conversation_id: conversationId })
+            body: JSON.stringify({
+                message: msg,
+                conversation_id: conversationId,
+                top_k: 5,
+                mode: 'chat'
+            })
         });
-
         const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Error');
+        
         conversationId = data.conversation_id;
-
-        appendChat("bot", data.answer);
+        const botMsg = document.createElement('div');
+        botMsg.className = 'chat-message bot';
+        botMsg.innerHTML = `<div class="message-bubble">${data.answer}</div>`;
+        chatWindow.appendChild(botMsg);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
     } catch (err) {
-        appendChat("bot", "Error: unable to get response.");
+        const errMsg = document.createElement('div');
+        errMsg.className = 'chat-message bot';
+        errMsg.innerHTML = `<div class="message-bubble">Error: ${err.message}</div>`;
+        chatWindow.appendChild(errMsg);
+    } finally {
+        showLoading(false);
     }
 }
 
-function appendChat(role, text) {
-    const box = document.getElementById("chatWindow");
-    const bubble = document.createElement("div");
-    bubble.className = `my-2 p-3 rounded-xl max-w-[80%] ${role === "user" ? "ml-auto bg-blue-600 text-white" : "bg-white shadow"}`;
-    bubble.textContent = text;
-    box.appendChild(bubble);
-    scrollChat();
+// INIT
+if (authToken && currentUser) {
+    document.getElementById('authSection').classList.remove('active');
+    document.getElementById('navActions').style.display = 'flex';
+    switchView('dashboard');
 }
-
-function scrollChat() {
-    const box = document.getElementById("chatWindow");
-    box.scrollTop = box.scrollHeight;
-}
-
-// === INITIALIZATION ===
-// Check if user is already logged in on page load
-function initializeApp() {
-    if (authToken) {
-        // User is logged in, show the app
-        document.getElementById("authSection").classList.add("hidden");
-        document.getElementById("navActions").classList.remove("hidden");
-        switchView("dashboard");
-    } else {
-        // No token, show login screen
-        document.getElementById("authSection").classList.remove("hidden");
-        document.getElementById("navActions").classList.add("hidden");
-    }
-}
-
-// Run on page load
-document.addEventListener("DOMContentLoaded", initializeApp);
 </script>
 
 </body>

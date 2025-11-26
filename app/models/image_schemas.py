@@ -30,16 +30,18 @@ class ImageChunkMetadata(BaseModel):
 
 class ImageUploadResponse(BaseModel):
     """Response schema for image upload"""
-    success: bool
     document_id: str
     workspace_id: str
     filename: str
     image_size: str
     total_chunks: int
     extraction_method: str
-    file_size: int
-    message: str
+    extracted_text_length: int
+    confidence_score: Optional[float] = None
+    stored_ids: List[str] = Field(default_factory=list)
     processing_time: Optional[float] = None
+    chunks_metadata: List[Dict[str, Any]] = Field(default_factory=list)
+    processed_images: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class ImageProcessingError(BaseModel):

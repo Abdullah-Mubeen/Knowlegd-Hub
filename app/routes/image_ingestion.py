@@ -39,7 +39,6 @@ async def upload_images(
         
         file_handler = get_file_handler()
         image_processor = get_image_processor()
-        document_id = f"images_{uuid.uuid4().hex[:12]}"
         
         processed_images = []
         for file in files:
@@ -47,14 +46,35 @@ async def upload_images(
                 raise HTTPException(status_code=400, detail="Invalid file type")
             
             await file.seek(0)
+            document_id = f"images_{uuid.uuid4().hex[:12]}"
             file_path, file_metadata = await file_handler.save_upload_file(
                 file, workspace_id, document_id
             )
-            processed_data = image_processor.process_image(file_path, workspace_id, document_id)
+            # Await the async process_image function
+            processed_data = await image_processor.process_image(
+                file_path, workspace_id, file.filename
+            )
             processed_images.append(processed_data)
         
+        # Return the first processed image with aggregate data
+        if not processed_images:
+            raise HTTPException(status_code=400, detail="No images processed")
+        
+        first_image = processed_images[0]
+        total_chunks = sum(img.get("total_chunks", 0) for img in processed_images)
+        
         return ImageUploadResponse(
-            document_id=document_id,
+            document_id=first_image["document_id"],
+            workspace_id=workspace_id,
+            filename=first_image["filename"],
+            image_size=first_image["image_size"],
+            total_chunks=total_chunks,
+            extraction_method=first_image["extraction_method"],
+            extracted_text_length=first_image["extracted_text_length"],
+            confidence_score=first_image.get("confidence_score"),
+            stored_ids=first_image.get("stored_ids", []),
+            processing_time=first_image.get("processing_time"),
+            chunks_metadata=first_image.get("chunks_metadata", []),
             processed_images=processed_images
         )
     except Exception as e:
