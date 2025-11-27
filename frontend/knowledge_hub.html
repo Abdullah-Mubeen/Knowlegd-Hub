@@ -241,12 +241,7 @@
 
         .btn-primary:hover {
             background: var(--primary-hover);
-            transform: translateY(-1px);
             box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
-        }
-
-        .btn-primary:active {
-            transform: translateY(0);
         }
 
         .btn-secondary {
@@ -460,7 +455,6 @@
         .doc-card:hover {
             border-color: var(--accent);
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-            transform: translateY(-2px);
         }
 
         .doc-icon {
@@ -1449,8 +1443,8 @@ function addQnaPair() {
         <button type="button" class="pair-remove" onclick="document.getElementById('qna-${qnaCount}').remove()">Remove</button>
         <div class="pair-number">Q&A #${qnaCount}</div>
         <div class="pair-content">
-            <input type="text" placeholder="Enter your question" class="qna-q" required>
-            <input type="text" placeholder="Enter the answer" class="qna-a" required>
+            <input type="text" placeholder="Enter your question (min 3 characters)" class="qna-q" required minlength="3">
+            <textarea placeholder="Enter the answer (min 5 characters)" class="qna-a" required minlength="5" rows="3"></textarea>
         </div>
     `;
     container.appendChild(item);
@@ -1460,10 +1454,28 @@ function submitQna() {
     const items = document.querySelectorAll('.qna-item');
     if (items.length === 0) { showToast('Add at least one Q&A pair', 'error'); return; }
     
-    const data = Array.from(items).map(item => ({
-        question: item.querySelector('.qna-q').value,
-        answer: item.querySelector('.qna-a').value
-    }));
+    const data = [];
+    let hasError = false;
+    
+    Array.from(items).forEach((item, index) => {
+        const question = item.querySelector('.qna-q').value.trim();
+        const answer = item.querySelector('.qna-a').value.trim();
+        
+        if (question.length < 3) {
+            showToast(`Q&A #${index + 1}: Question must be at least 3 characters`, 'error');
+            hasError = true;
+            return;
+        }
+        if (answer.length < 5) {
+            showToast(`Q&A #${index + 1}: Answer must be at least 5 characters`, 'error');
+            hasError = true;
+            return;
+        }
+        
+        data.push({ question, answer });
+    });
+    
+    if (hasError || data.length === 0) return;
 
     uploadQna(data);
 }
@@ -1482,12 +1494,25 @@ async function uploadQna(data) {
                 qna_pairs: data.map(item => ({
                     question: item.question,
                     answer: item.answer,
-                    category: "General"  // Add default category
+                    category: "General"
                 }))
             })
         });
         const resp = await res.json();
-        if (!res.ok) throw new Error(resp.detail || 'Failed');
+        if (!res.ok) {
+            // Handle Pydantic validation errors
+            let errorMsg = 'Failed';
+            if (resp.detail) {
+                if (Array.isArray(resp.detail)) {
+                    errorMsg = resp.detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
+                } else if (typeof resp.detail === 'string') {
+                    errorMsg = resp.detail;
+                } else {
+                    errorMsg = JSON.stringify(resp.detail);
+                }
+            }
+            throw new Error(errorMsg);
+        }
         
         showToast(`✓ ${data.length} Q&A pairs uploaded`);
         document.getElementById('qnaContainer').innerHTML = '';
@@ -1511,8 +1536,8 @@ function addFaqItem() {
         <button type="button" class="pair-remove" onclick="document.getElementById('faq-${faqCount}').remove()">Remove</button>
         <div class="pair-number">FAQ #${faqCount}</div>
         <div class="pair-content">
-            <input type="text" placeholder="Enter your question" class="faq-q" required>
-            <textarea placeholder="Enter the answer" class="faq-a" required></textarea>
+            <input type="text" placeholder="Enter your question (min 3 characters)" class="faq-q" required minlength="3">
+            <textarea placeholder="Enter the answer (min 5 characters)" class="faq-a" required minlength="5" rows="3"></textarea>
         </div>
     `;
     container.appendChild(item);
@@ -1522,11 +1547,30 @@ function submitFaq() {
     const items = document.querySelectorAll('.faq-item');
     if (items.length === 0) { showToast('Add at least one FAQ item', 'error'); return; }
     
-    const data = Array.from(items).map(item => ({
-        question: item.querySelector('.faq-q').value,
-        answer: item.querySelector('.faq-a').value
-    }));
-    const category = document.getElementById('faqCategory').value || 'General';
+    const data = [];
+    let hasError = false;
+    
+    Array.from(items).forEach((item, index) => {
+        const question = item.querySelector('.faq-q').value.trim();
+        const answer = item.querySelector('.faq-a').value.trim();
+        
+        if (question.length < 3) {
+            showToast(`FAQ #${index + 1}: Question must be at least 3 characters`, 'error');
+            hasError = true;
+            return;
+        }
+        if (answer.length < 5) {
+            showToast(`FAQ #${index + 1}: Answer must be at least 5 characters`, 'error');
+            hasError = true;
+            return;
+        }
+        
+        data.push({ question, answer });
+    });
+    
+    if (hasError || data.length === 0) return;
+    
+    const category = document.getElementById('faqCategory').value.trim() || 'General';
 
     uploadFaq(data, category);
 }
@@ -1550,7 +1594,20 @@ async function uploadFaq(data, category) {
             })
         });
         const resp = await res.json();
-        if (!res.ok) throw new Error(resp.detail || 'Failed');
+        if (!res.ok) {
+            // Handle Pydantic validation errors
+            let errorMsg = 'Failed';
+            if (resp.detail) {
+                if (Array.isArray(resp.detail)) {
+                    errorMsg = resp.detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
+                } else if (typeof resp.detail === 'string') {
+                    errorMsg = resp.detail;
+                } else {
+                    errorMsg = JSON.stringify(resp.detail);
+                }
+            }
+            throw new Error(errorMsg);
+        }
         
         showToast(`✓ ${data.length} FAQ items uploaded`);
         document.getElementById('faqContainer').innerHTML = '';
