@@ -46,13 +46,14 @@ async def upload_images(
                 raise HTTPException(status_code=400, detail="Invalid file type")
             
             await file.seek(0)
-            document_id = f"images_{uuid.uuid4().hex[:12]}"
+            # Generate unique document_id for each image
+            document_id = f"img_{uuid.uuid4().hex[:12]}"
             file_path, file_metadata = await file_handler.save_upload_file(
                 file, workspace_id, document_id
             )
-            # Await the async process_image function
+            # Await the async process_image function - pass document_id
             processed_data = await image_processor.process_image(
-                file_path, workspace_id, file.filename
+                file_path, workspace_id, file.filename, document_id
             )
             processed_images.append(processed_data)
         
@@ -85,16 +86,41 @@ async def upload_images(
 @router.delete("/ingest/images/{preprocessed_id}")
 async def delete_images(preprocessed_id: str):
     """
-    Delete preprocessed image documents
+    Delete preprocessed image documents, their chunks, and embeddings
     
     - **preprocessed_id**: ID of the preprocessed document
     """
     try:
         db = get_db()
-        result = db.delete_document(preprocessed_id)
-        if not result:
+        
+        # Verify document exists
+        document = db.get_document(preprocessed_id)
+        if not document:
             raise HTTPException(status_code=404, detail="Document not found")
-        return {"message": "Document deleted successfully"}
+        
+        workspace_id = document["workspace_id"]
+        
+        # Delete chunks from MongoDB
+        deleted_chunks = db.delete_chunks_by_document(preprocessed_id)
+        
+        # Delete vectors from Pinecone
+        from app.utils.pinecone_service import get_pinecone_service
+        pinecone_service = get_pinecone_service()
+        pinecone_service.delete_by_metadata(
+            filter_dict={"document_id": preprocessed_id},
+            namespace=workspace_id
+        )
+        
+        # Soft delete document
+        db.delete_document(preprocessed_id)
+        
+        return {
+            "success": True,
+            "message": "Image document deleted successfully",
+            "deleted_chunks": deleted_chunks
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error deleting images: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal Server Error")

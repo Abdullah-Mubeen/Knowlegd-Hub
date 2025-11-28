@@ -76,16 +76,41 @@ async def upload_qna(
 @router.delete("/ingest/qna/{preprocessed_id}")
 async def delete_qna(preprocessed_id: str):
     """
-    Delete a preprocessed Q&A document
+    Delete a preprocessed Q&A document, its chunks, and embeddings
     
     - **preprocessed_id**: ID of the preprocessed document
     """
     try:
         db = get_db()
-        result = db.delete_document(preprocessed_id)
-        if not result:
+        
+        # Verify document exists
+        document = db.get_document(preprocessed_id)
+        if not document:
             raise HTTPException(status_code=404, detail="Document not found")
-        return {"message": "Document deleted successfully"}
+        
+        workspace_id = document["workspace_id"]
+        
+        # Delete chunks from MongoDB
+        deleted_chunks = db.delete_chunks_by_document(preprocessed_id)
+        
+        # Delete vectors from Pinecone
+        from app.utils.pinecone_service import get_pinecone_service
+        pinecone_service = get_pinecone_service()
+        pinecone_service.delete_by_metadata(
+            filter_dict={"document_id": preprocessed_id},
+            namespace=workspace_id
+        )
+        
+        # Soft delete document
+        db.delete_document(preprocessed_id)
+        
+        return {
+            "success": True,
+            "message": "Q&A document deleted successfully",
+            "deleted_chunks": deleted_chunks
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error deleting Q&A: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal Server Error")

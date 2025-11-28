@@ -192,29 +192,62 @@ class MongoDBService:
         increment_chunks: int = 0,
         increment_queries: int = 0
     ) -> bool:
-        """Update user statistics"""
+        """
+        Update user statistics with proper increments
+        
+        Args:
+            user_id: User identifier
+            increment_documents: Amount to increment total_documents by
+            increment_chunks: Amount to increment total_chunks by
+            increment_queries: Amount to increment total_queries by
+            
+        Returns:
+            True if update was successful
+        """
         try:
-            update_fields = {"updated_at": datetime.utcnow()}
+            inc_fields = {}
             
             if increment_documents != 0:
-                update_fields["total_documents"] = increment_documents
+                inc_fields["total_documents"] = increment_documents
             if increment_chunks != 0:
-                update_fields["total_chunks"] = increment_chunks
+                inc_fields["total_chunks"] = increment_chunks
             if increment_queries != 0:
-                update_fields["total_queries"] = increment_queries
+                inc_fields["total_queries"] = increment_queries
+            
+            # Build update query
+            update_query = {"$set": {"updated_at": datetime.utcnow()}}
+            if inc_fields:
+                update_query["$inc"] = inc_fields
             
             result = self.users.update_one(
                 {"user_id": user_id},
-                {
-                    "$inc": {k: v for k, v in update_fields.items() if k.startswith("total_")},
-                    "$set": {"updated_at": update_fields["updated_at"]}
-                }
+                update_query
             )
             
             return result.modified_count > 0
             
         except Exception as e:
             logger.error(f"Error updating user stats: {str(e)}")
+            raise
+    
+    def get_user_stats(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get user statistics"""
+        try:
+            user = self.users.find_one(
+                {"user_id": user_id},
+                {
+                    "total_documents": 1,
+                    "total_chunks": 1,
+                    "total_queries": 1,
+                    "created_at": 1,
+                    "updated_at": 1
+                }
+            )
+            if user:
+                user["_id"] = str(user["_id"])
+            return user
+        except Exception as e:
+            logger.error(f"Error getting user stats: {str(e)}")
             raise
     
     # ==================== DOCUMENT OPERATIONS ====================
@@ -375,6 +408,89 @@ class MongoDBService:
             logger.error(f"Error getting workspace stats: {str(e)}")
             raise
     
+    def count_chunks_by_document(self, document_id: str) -> int:
+        """Count chunks for a specific document"""
+        try:
+            count = self.chunks.count_documents({"document_id": document_id})
+            return count
+        except Exception as e:
+            logger.error(f"Error counting chunks by document: {str(e)}")
+            raise
+    
+    def count_documents_by_type(self, workspace_id: str, document_type: str) -> int:
+        """Count documents of a specific type in a workspace"""
+        try:
+            count = self.documents.count_documents({
+                "workspace_id": workspace_id,
+                "document_type": document_type,
+                "status": "active"
+            })
+            return count
+        except Exception as e:
+            logger.error(f"Error counting documents by type: {str(e)}")
+            raise
+    
+    def list_documents_by_type(
+        self,
+        workspace_id: str,
+        document_type: str,
+        limit: int = 100,
+        skip: int = 0
+    ) -> List[Dict[str, Any]]:
+        """List documents of a specific type"""
+        try:
+            docs = list(
+                self.documents
+                .find({
+                    "workspace_id": workspace_id,
+                    "document_type": document_type,
+                    "status": "active"
+                })
+                .sort("created_at", DESCENDING)
+                .skip(skip)
+                .limit(limit)
+            )
+            
+            for doc in docs:
+                doc["_id"] = str(doc["_id"])
+            
+            return docs
+            
+        except Exception as e:
+            logger.error(f"Error listing documents by type: {str(e)}")
+            raise
+    
+    def search_documents(
+        self,
+        workspace_id: str,
+        search_term: str,
+        limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """Search documents by filename or metadata"""
+        try:
+            docs = list(
+                self.documents
+                .find({
+                    "workspace_id": workspace_id,
+                    "status": "active",
+                    "$or": [
+                        {"filename": {"$regex": search_term, "$options": "i"}},
+                        {"document_type": search_term}
+                    ]
+                })
+                .sort("created_at", DESCENDING)
+                .limit(limit)
+            )
+            
+            for doc in docs:
+                doc["_id"] = str(doc["_id"])
+            
+            return docs
+            
+        except Exception as e:
+            logger.error(f"Error searching documents: {str(e)}")
+            raise
+    
     # ==================== CHUNK OPERATIONS ====================
     
     def create_chunk(
@@ -502,6 +618,54 @@ class MongoDBService:
             logger.error(f"Error getting chunks by pinecone IDs: {str(e)}")
             raise
     
+    def get_chunks_by_workspace(
+        self,
+        workspace_id: str,
+        limit: int = 1000,
+        skip: int = 0
+    ) -> List[Dict[str, Any]]:
+        """Get all chunks for a workspace"""
+        try:
+            chunks = list(
+                self.chunks
+                .find({"workspace_id": workspace_id})
+                .sort("created_at", DESCENDING)
+                .skip(skip)
+                .limit(limit)
+            )
+            
+            for chunk in chunks:
+                chunk["_id"] = str(chunk["_id"])
+            
+            return chunks
+            
+        except Exception as e:
+            logger.error(f"Error getting chunks by workspace: {str(e)}")
+            raise
+    
+    def update_chunk_metadata(
+        self,
+        chunk_id: str,
+        metadata_update: Dict[str, Any]
+    ) -> bool:
+        """Update chunk metadata"""
+        try:
+            result = self.chunks.update_one(
+                {"chunk_id": chunk_id},
+                {
+                    "$set": {
+                        "metadata": metadata_update,
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            
+            return result.modified_count > 0
+            
+        except Exception as e:
+            logger.error(f"Error updating chunk metadata: {str(e)}")
+            raise
+    
     def delete_chunks_by_document(self, document_id: str) -> int:
         """Delete all chunks for a document"""
         try:
@@ -621,7 +785,191 @@ class MongoDBService:
             logger.error(f"Error getting workspace queries: {str(e)}")
             raise
     
+    def get_query_stats(self, workspace_id: str) -> Dict[str, Any]:
+        """Get query statistics for a workspace"""
+        try:
+            total_queries = self.queries.count_documents({
+                "workspace_id": workspace_id
+            })
+            
+            # Get top questions
+            pipeline = [
+                {"$match": {"workspace_id": workspace_id}},
+                {"$group": {"_id": "$question", "count": {"$sum": 1}}},
+                {"$sort": {"count": -1}},
+                {"$limit": 10}
+            ]
+            
+            top_questions = list(self.queries.aggregate(pipeline))
+            
+            return {
+                "workspace_id": workspace_id,
+                "total_queries": total_queries,
+                "top_questions": top_questions
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting query stats: {str(e)}")
+            raise
+    
+    def delete_workspace_data(self, workspace_id: str) -> Dict[str, int]:
+        """
+        Completely delete all data for a workspace
+        
+        Args:
+            workspace_id: Workspace identifier
+            
+        Returns:
+            Dict with counts of deleted items
+        """
+        try:
+            # Delete chunks
+            deleted_chunks = self.chunks.delete_many({
+                "workspace_id": workspace_id
+            }).deleted_count
+            
+            # Delete documents
+            deleted_docs = self.documents.delete_many({
+                "workspace_id": workspace_id
+            }).deleted_count
+            
+            # Delete queries
+            deleted_queries = self.queries.delete_many({
+                "workspace_id": workspace_id
+            }).deleted_count
+            
+            logger.info(f"Deleted workspace {workspace_id}: {deleted_docs} docs, {deleted_chunks} chunks, {deleted_queries} queries")
+            
+            return {
+                "documents": deleted_docs,
+                "chunks": deleted_chunks,
+                "queries": deleted_queries
+            }
+            
+        except Exception as e:
+            logger.error(f"Error deleting workspace data: {str(e)}")
+            raise
+    
     # ==================== UTILITY METHODS ====================
+    
+    def get_collection_sizes(self) -> Dict[str, int]:
+        """Get approximate sizes of all collections"""
+        try:
+            return {
+                "users": self.users.count_documents({}),
+                "documents": self.documents.count_documents({}),
+                "chunks": self.chunks.count_documents({}),
+                "queries": self.queries.count_documents({})
+            }
+        except Exception as e:
+            logger.error(f"Error getting collection sizes: {str(e)}")
+            raise
+    
+    def get_database_stats(self) -> Dict[str, Any]:
+        """Get comprehensive database statistics"""
+        try:
+            total_users = self.users.count_documents({})
+            total_docs = self.documents.count_documents({})
+            total_chunks = self.chunks.count_documents({})
+            total_queries = self.queries.count_documents({})
+            
+            # Get document type breakdown
+            doc_types = list(self.documents.aggregate([
+                {"$match": {"status": "active"}},
+                {"$group": {"_id": "$document_type", "count": {"$sum": 1}}}
+            ]))
+            
+            return {
+                "total_users": total_users,
+                "total_documents": total_docs,
+                "total_chunks": total_chunks,
+                "total_queries": total_queries,
+                "document_types": {item["_id"]: item["count"] for item in doc_types},
+                "avg_chunks_per_document": round(total_chunks / max(total_docs, 1), 2)
+            }
+        except Exception as e:
+            logger.error(f"Error getting database stats: {str(e)}")
+            raise
+    
+    def bulk_update_document_metadata(
+        self,
+        document_ids: List[str],
+        metadata_update: Dict[str, Any]
+    ) -> int:
+        """Bulk update metadata for multiple documents"""
+        try:
+            result = self.documents.update_many(
+                {"document_id": {"$in": document_ids}},
+                {
+                    "$set": {
+                        "file_metadata": metadata_update,
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            
+            logger.info(f"Updated metadata for {result.modified_count} documents")
+            return result.modified_count
+            
+        except Exception as e:
+            logger.error(f"Error bulk updating document metadata: {str(e)}")
+            raise
+    
+    def find_orphaned_chunks(self, workspace_id: str) -> List[Dict[str, Any]]:
+        """
+        Find chunks whose parent documents don't exist (orphaned chunks)
+        
+        Args:
+            workspace_id: Workspace identifier
+            
+        Returns:
+            List of orphaned chunks
+        """
+        try:
+            # Get all document IDs in workspace
+            docs = self.documents.find(
+                {"workspace_id": workspace_id},
+                {"document_id": 1}
+            )
+            doc_ids = {doc["document_id"] for doc in docs}
+            
+            # Find chunks not in document set
+            orphaned = list(
+                self.chunks.find({
+                    "workspace_id": workspace_id,
+                    "document_id": {"$nin": list(doc_ids)}
+                })
+            )
+            
+            for chunk in orphaned:
+                chunk["_id"] = str(chunk["_id"])
+            
+            logger.warning(f"Found {len(orphaned)} orphaned chunks in workspace {workspace_id}")
+            return orphaned
+            
+        except Exception as e:
+            logger.error(f"Error finding orphaned chunks: {str(e)}")
+            raise
+    
+    def delete_orphaned_chunks(self, workspace_id: str) -> int:
+        """Delete all orphaned chunks in a workspace"""
+        try:
+            orphaned = self.find_orphaned_chunks(workspace_id)
+            chunk_ids = [c["chunk_id"] for c in orphaned]
+            
+            if not chunk_ids:
+                return 0
+            
+            result = self.chunks.delete_many({
+                "chunk_id": {"$in": chunk_ids}
+            })
+            
+            logger.info(f"Deleted {result.deleted_count} orphaned chunks")
+            return result.deleted_count
+            
+        except Exception as e:
+            logger.error(f"Error deleting orphaned chunks: {str(e)}")
+            raise
     
     def close(self):
         """Close MongoDB connection"""

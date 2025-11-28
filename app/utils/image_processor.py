@@ -282,6 +282,7 @@ Be concise and informative."""
         file_path: str,
         workspace_id: str,
         filename: str,
+        document_id: str,
         use_ocr: bool = True
     ) -> Dict[str, Any]:
         """
@@ -293,7 +294,6 @@ Be concise and informative."""
         5. Store in Pinecone with rich metadata
         """
         start_time = time.time()
-        document_id = f"img_{uuid.uuid4().hex[:12]}"
         
         try:
             logger.info(f"Starting image processing: {filename}")

@@ -8,6 +8,7 @@ from app.models.faq_schemas import FAQItem
 from app.utils.text_splitter import get_text_chunker, ChunkConfig
 from app.utils.openai_service import get_openai_service
 from app.utils.pinecone_service import get_pinecone_service
+from app.db import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ class FAQProcessor:
         ))
         self.openai_service = get_openai_service()
         self.pinecone_service = get_pinecone_service()
+        self.db = get_db()
     
     def create_chunks_from_faq(
         self,
@@ -140,16 +142,40 @@ class FAQProcessor:
     ) -> Dict[str, Any]:
         """
         Complete FAQ processing pipeline:
-        1. Create chunks from FAQ items
-        2. Generate embeddings
-        3. Store in Pinecone
+        1. Create document record in MongoDB
+        2. Create chunks from FAQ items
+        3. Generate embeddings
+        4. Store chunks in MongoDB
+        5. Store in Pinecone
         """
         start_time = time.time()
         
         try:
             logger.info(f"Starting FAQ processing: {len(faq_items)} items in {category}")
             
-            # Step 1: Create chunks
+            # Step 1: Create document record in MongoDB
+            document_record = self.db.create_document(
+                document_id=document_id,
+                workspace_id=workspace_id,
+                document_type="faq",
+                filename=f"faq_{category}.json",  # Virtual filename
+                file_path=f"virtual://faq/{document_id}",  # Virtual path (no actual file)
+                file_size=sum(len(item.question + item.answer) for item in faq_items),
+                total_chunks=0,  # Will update after chunk creation
+                file_metadata={
+                    "source": "api_upload",
+                    "total_items": len(faq_items),
+                    "category": category
+                },
+                processing_metadata={
+                    "extraction_method": "direct_input",
+                    "format": "faq_items"
+                }
+            )
+            
+            logger.info(f"Created FAQ document record in MongoDB")
+            
+            # Step 2: Create chunks
             chunks = self.create_chunks_from_faq(
                 faq_items=faq_items,
                 document_id=document_id,
@@ -157,14 +183,44 @@ class FAQProcessor:
                 category=category
             )
             
-            # Step 2: Generate embeddings
+            # Step 3: Generate embeddings
             chunks = self.generate_embeddings_batch(chunks)
             
-            # Step 3: Store in Pinecone
+            # Step 4: Store chunks in MongoDB
+            mongo_chunks = []
+            for i, chunk_data in enumerate(chunks):
+                mongo_chunk = {
+                    "chunk_id": chunk_data["id"],
+                    "document_id": document_id,
+                    "workspace_id": workspace_id,
+                    "text": chunk_data["text"],
+                    "pinecone_id": "",  # Will be filled after Pinecone storage
+                    "metadata": chunk_data["metadata"]
+                }
+                mongo_chunks.append(mongo_chunk)
+            
+            # Step 5: Store in Pinecone
             stored_ids = self.store_chunks_in_pinecone(
                 chunks=chunks,
                 namespace=workspace_id
             )
+            
+            # Update pinecone_id in MongoDB chunks
+            for i, chunk in enumerate(mongo_chunks):
+                chunk["pinecone_id"] = stored_ids[i]
+            
+            self.db.create_chunks_batch(mongo_chunks)
+            
+            logger.info(f"Stored {len(mongo_chunks)} chunks in MongoDB with Pinecone IDs")
+            
+            # Step 6: Update user statistics
+            user = self.db.get_user_by_workspace(workspace_id)
+            if user:
+                self.db.update_user_stats(
+                    user_id=user["user_id"],
+                    increment_documents=1,
+                    increment_chunks=len(chunks)
+                )
             
             processing_time = time.time() - start_time
             

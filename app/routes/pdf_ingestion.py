@@ -41,7 +41,7 @@ async def upload_pdf(
         
         await file.seek(0)
         
-        # Generate document ID
+        # Generate document ID once for all chunks
         document_id = f"pdf_{uuid.uuid4().hex[:12]}"
         
         # Save file with workspace_id
@@ -53,13 +53,14 @@ async def upload_pdf(
             validate=False
         )
         
-        # Process PDF
+        # Process PDF - pass document_id to ensure all chunks use same ID
         logger.info(f"Processing PDF: {file.filename}")
         pdf_processor = get_pdf_processor()
         result = await pdf_processor.process_pdf(
             file_path=file_path,
             workspace_id=workspace_id,
-            filename=file.filename
+            filename=file.filename,
+            document_id=document_id
         )
         
         return PDFUploadResponse(
@@ -84,16 +85,41 @@ async def upload_pdf(
 @router.delete("/ingest/pdf/{preprocessed_id}")
 async def delete_pdf(preprocessed_id: str):
     """
-    Delete a preprocessed PDF document
+    Delete a preprocessed PDF document, its chunks, and embeddings
     
     - **preprocessed_id**: ID of the preprocessed document
     """
     try:
         db = get_db()
-        result = db.delete_document(preprocessed_id)
-        if not result:
+        
+        # Verify document exists
+        document = db.get_document(preprocessed_id)
+        if not document:
             raise HTTPException(status_code=404, detail="Document not found")
-        return {"message": "Document deleted successfully"}
+        
+        workspace_id = document["workspace_id"]
+        
+        # Delete chunks from MongoDB
+        deleted_chunks = db.delete_chunks_by_document(preprocessed_id)
+        
+        # Delete vectors from Pinecone
+        from app.utils.pinecone_service import get_pinecone_service
+        pinecone_service = get_pinecone_service()
+        pinecone_service.delete_by_metadata(
+            filter_dict={"document_id": preprocessed_id},
+            namespace=workspace_id
+        )
+        
+        # Soft delete document
+        db.delete_document(preprocessed_id)
+        
+        return {
+            "success": True,
+            "message": "PDF document deleted successfully",
+            "deleted_chunks": deleted_chunks
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error deleting PDF: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
