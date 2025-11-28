@@ -423,6 +423,52 @@
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
         }
 
+        .grid-4 {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        /* STAT CARDS */
+        .stat-card {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            padding: 1.5rem;
+        }
+
+        .stat-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .stat-content {
+            flex: 1;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--accent);
+            line-height: 1;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-subtext {
+            font-size: 0.8rem;
+            color: var(--text-tertiary);
+        }
+
         /* DOCUMENTS */
         .doc-card {
             background: var(--bg);
@@ -1014,8 +1060,18 @@
                 font-size: 0.9rem;
             }
 
-            .grid-2 {
+            .grid-2, .grid-4 {
                 grid-template-columns: 1fr;
+            }
+
+            .stat-card {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .stat-icon {
+                width: 48px;
+                height: 48px;
             }
 
             .type-selector {
@@ -1147,8 +1203,8 @@
     <section id="dashboardView">
         <div class="header slide-in">
             <div class="header-content">
-                <h1>Your Documents</h1>
-                <p>Manage and organize your knowledge base</p>
+                <h1>Dashboard</h1>
+                <p>Overview of your knowledge base</p>
             </div>
             <div class="header-action">
                 <button onclick="switchView('upload')" class="btn btn-primary">
@@ -1160,7 +1216,88 @@
             </div>
         </div>
 
-        <div id="docList" class="grid grid-3"></div>
+        <!-- STATS SECTION -->
+        <div class="grid grid-3" id="statsGrid">
+            <div class="card stat-card">
+                <div class="stat-icon" style="background: rgba(26, 26, 26, 0.1);">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                    </svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Total Documents</div>
+                    <div class="stat-value" id="statDocs">0</div>
+                    <div class="stat-subtext">Knowledge base size</div>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="stat-icon" style="background: rgba(11, 122, 86, 0.1);">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Queries Today</div>
+                    <div class="stat-value" id="statQueries">0</div>
+                    <div class="stat-subtext">Chat interactions</div>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="stat-icon" style="background: rgba(197, 127, 30, 0.1);">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="1"></circle>
+                        <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m2.12 2.12l4.24 4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m2.12-2.12l4.24-4.24M19.78 19.78l-4.24-4.24m-2.12-2.12l-4.24-4.24"></path>
+                    </svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Smart Search</div>
+                    <div class="stat-value" id="statSmartSearch">Ready</div>
+                    <div class="stat-subtext">AI-powered Q&A</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DOCUMENTS BY TYPE -->
+        <div class="card">
+            <h2 style="margin-bottom: 1.5rem;">Content Breakdown</h2>
+            <div id="typeBreakdown" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.875rem 1rem; background: var(--bg-secondary); border-radius: 6px; border-left: 3px solid var(--accent);">
+                    <span style="font-weight: 500; font-size: 0.95rem;">PDF Documents</span>
+                    <span id="type-pdf" style="font-weight: 700; font-size: 1.1rem; color: var(--accent);">0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.875rem 1rem; background: var(--bg-secondary); border-radius: 6px; border-left: 3px solid var(--success);">
+                    <span style="font-weight: 500; font-size: 0.95rem;">Images</span>
+                    <span id="type-images" style="font-weight: 700; font-size: 1.1rem; color: var(--success);">0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.875rem 1rem; background: var(--bg-secondary); border-radius: 6px; border-left: 3px solid var(--warning);">
+                    <span style="font-weight: 500; font-size: 0.95rem;">Q&A Pairs</span>
+                    <span id="type-qna" style="font-weight: 700; font-size: 1.1rem; color: var(--warning);">0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.875rem 1rem; background: var(--bg-secondary); border-radius: 6px; border-left: 3px solid var(--text-secondary);">
+                    <span style="font-weight: 500; font-size: 0.95rem;">FAQ Items</span>
+                    <span id="type-faq" style="font-weight: 700; font-size: 1.1rem; color: var(--text-secondary);">0</span>
+                </div>
+            </div>
+        </div>
+
+        <h2 style="margin-top: 2rem; margin-bottom: 1rem;">Recent Documents</h2>
+        <div id="docList" class="card" style="overflow: hidden;">
+            <table style="width: 100%; border-collapse: collapse;" id="docTable">
+                <thead style="background: var(--bg-secondary); border-bottom: 1px solid var(--border);">
+                    <tr>
+                        <th style="padding: 1rem; text-align: left; font-weight: 600; font-size: 0.9rem; color: var(--text-secondary);">Filename</th>
+                        <th style="padding: 1rem; text-align: left; font-weight: 600; font-size: 0.9rem; color: var(--text-secondary);">Type</th>
+                        <th style="padding: 1rem; text-align: center; font-weight: 600; font-size: 0.9rem; color: var(--text-secondary);">Chunks</th>
+                        <th style="padding: 1rem; text-align: right; font-weight: 600; font-size: 0.9rem; color: var(--text-secondary);">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="docTableBody">
+                </tbody>
+            </table>
+        </div>
 
         <div id="emptyDocs" class="card empty" style="display: none;">
             <div class="empty-icon">
@@ -1486,8 +1623,8 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
 
 // DASHBOARD
 async function loadDocuments() {
-    const docList = document.getElementById('docList');
-    docList.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 2rem;"><div class="loader"></div></div>';
+    const docTableBody = document.getElementById('docTableBody');
+    docTableBody.innerHTML = '<tr><td colspan="4" style="padding: 2rem; text-align: center;"><div class="loader"></div></td></tr>';
 
     const types = ['pdf', 'images', 'qna', 'faq'];
     let docs = [];
@@ -1507,32 +1644,80 @@ async function loadDocuments() {
         }
     }
 
-    docList.innerHTML = '';
+    // Update Content Breakdown with actual counts from loaded documents
+    const pdfCount = docs.filter(d => d.type === 'pdf').length;
+    const imagesCount = docs.filter(d => d.type === 'images').length;
+    const qnaCount = docs.filter(d => d.type === 'qna').length;
+    const faqCount = docs.filter(d => d.type === 'faq').length;
+    
+    document.getElementById('type-pdf').textContent = pdfCount;
+    document.getElementById('type-images').textContent = imagesCount;
+    document.getElementById('type-qna').textContent = qnaCount;
+    document.getElementById('type-faq').textContent = faqCount;
+    
+    // Update top stat cards
+    const totalDocs = docs.length;
+    document.getElementById('statDocs').textContent = totalDocs;
+    
+    // Try to load queries from stats endpoint
+    try {
+        const statsRes = await fetch(`${API}/api/rag/workspace/stats`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (statsRes.ok) {
+            const stats = await statsRes.json();
+            document.getElementById('statQueries').textContent = stats.queries_today || 0;
+        }
+    } catch (err) {
+        console.error('Error loading query stats:', err);
+        document.getElementById('statQueries').textContent = '0';
+    }
+
+    docTableBody.innerHTML = '';
     if (docs.length === 0) {
         document.getElementById('emptyDocs').style.display = 'block';
+        document.getElementById('docList').style.display = 'none';
         return;
     }
     document.getElementById('emptyDocs').style.display = 'none';
+    document.getElementById('docList').style.display = 'block';
 
-    docs.forEach(doc => {
-        const id = doc.document_id || doc.id || 'Unknown';
-        const icon = ICONS[doc.type] || ICONS.pdf;
-        docList.innerHTML += `
-            <div class="doc-card">
-                <div class="doc-icon">${icon}</div>
-                <div class="doc-title">${id}</div>
-                <div class="doc-type">${doc.type}</div>
-                <div class="doc-info">${doc.total_pages ? doc.total_pages + ' pages' : doc.type === 'images' ? 'Image' : ''}</div>
-                <div class="doc-actions">
-                    <button onclick="deleteDoc('${doc.type}', '${id}')" class="btn btn-danger btn-small">Delete</button>
-                </div>
-            </div>
+    // Show most recent documents (limit to 10)
+    docs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10).forEach(doc => {
+        const filename = doc.filename || doc.document_id || doc.id || 'Unknown';
+        const typeLabel = doc.type.toUpperCase();
+        const chunks = doc.total_chunks || 0;
+        const docId = doc.document_id || doc.id;
+        
+        const typeColors = {
+            'pdf': 'var(--accent)',
+            'images': 'var(--success)',
+            'qna': 'var(--warning)',
+            'faq': 'var(--text-secondary)'
+        };
+        
+        const row = document.createElement('tr');
+        row.style.borderBottom = '1px solid var(--border-light)';
+        row.style.transition = 'background 0.2s';
+        row.onmouseover = () => row.style.background = 'var(--bg-secondary)';
+        row.onmouseout = () => row.style.background = 'transparent';
+        
+        row.innerHTML = `
+            <td style="padding: 1rem; font-weight: 500; color: var(--text);">${filename}</td>
+            <td style="padding: 1rem;">
+                <span style="display: inline-block; padding: 0.4rem 0.8rem; background: ${typeColors[doc.type]}20; color: ${typeColors[doc.type]}; border-radius: 4px; font-size: 0.85rem; font-weight: 500;">${typeLabel}</span>
+            </td>
+            <td style="padding: 1rem; text-align: center; color: var(--text-secondary);">${chunks}</td>
+            <td style="padding: 1rem; text-align: right;">
+                <button onclick="deleteDoc('${doc.type}', '${docId}')" class="btn btn-danger btn-small" style="padding: 0.5rem 1rem; font-size: 0.85rem;">Delete</button>
+            </td>
         `;
+        docTableBody.appendChild(row);
     });
 }
 
 async function deleteDoc(type, id) {
-    if (!confirm('Delete this document?')) return;
+    if (!confirm('Delete this document? This action cannot be undone.')) return;
     showLoading(true);
     try {
         const res = await fetch(`${API}/api/knowledge-hub/ingest/${type}/${id}`, {
@@ -1540,8 +1725,10 @@ async function deleteDoc(type, id) {
             headers: { 'Authorization': `Bearer ${authToken}` }
         });
         if (res.ok) {
-            showToast('✓ Document deleted');
+            showToast('Document deleted successfully');
             loadDocuments();
+        } else {
+            showToast('Error deleting document', 'error');
         }
     } catch (err) {
         showToast('Error deleting document', 'error');
