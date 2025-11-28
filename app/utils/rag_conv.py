@@ -714,6 +714,47 @@ Provide a clearer, more detailed explanation:"""
         """Clear conversation history"""
         self.memory.clear_conversation(conversation_id)
 
+    async def summarize_conversation(self, conversation_id: str) -> str:
+        """
+        Generate a full conversation summary using the LLM.
+        Includes: problem, context, answers, resolutions.
+        """
+        history = self.memory.get_history(conversation_id)
+        if not history:
+            return "No conversation history found."
+
+        # Format all messages
+        formatted = []
+        for msg in history:
+            who = "User" if msg["role"] == "user" else "Assistant"
+            formatted.append(f"{who}: {msg['content']}")
+
+        history_text = "\n".join(formatted)
+
+        prompt = f"""
+    Summarize the following conversation between a user and an AI assistant.
+
+    Your summary MUST include:
+    - What the user wanted
+    - The main problems discussed
+    - Key answers the AI gave
+    - Any conclusions or resolutions
+    - Make the summary clear, meaningful, and structured.
+
+    Conversation:
+    {history_text}
+
+    Write the final summary below:
+    """
+
+        system_message = "You are a highly skilled summarization assistant."
+
+        summary = self.openai_service.generate_answer(
+            prompt=prompt,
+            system_message=system_message
+        )
+
+        return summary.strip()
 
 # Singleton instance
 _conversational_rag_service = None

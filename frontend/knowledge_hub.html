@@ -11,23 +11,24 @@
             box-sizing: border-box;
         }
 
-        :root {
-            --bg: #ffffff;
-            --bg-secondary: #f9f9f9;
-            --bg-tertiary: #f3f3f3;
-            --text: #1a1a1a;
-            --text-secondary: #6b7280;
-            --text-tertiary: #9ca3af;
-            --border: #e5e7eb;
-            --border-light: #f3f4f6;
-            --accent: #000000;
-            --accent-light: #374151;
-            --success: #10b981;
-            --error: #ef4444;
-            --warning: #f59e0b;
-            --primary: #000000;
-            --primary-hover: #1f2937;
-        }
+    :root {
+        --bg: #FAF9F6; /* Soft paper */
+        --bg-secondary: #F2F1EC; 
+        --bg-tertiary: #E9E8E2; 
+        --text: #222222; 
+        --text-secondary: #5C5C5C;
+        --text-tertiary: #8B8B8B;
+        --border: #D8D6CE; 
+        --border-light: #E7E6E1;
+        --accent: #1A1A1A; /* retro dark */
+        --accent-light: #3A3A3A;
+        --success: #0B7A56;
+        --error: #B71C1C;
+        --warning: #C57F1E;
+        --primary: #1A1A1A;
+        --primary-hover: #3A3A3A;
+    }
+
 
         html {
             scroll-behavior: smooth;
@@ -768,6 +769,159 @@
             width: auto;
         }
 
+        /* SUMMARY SIDE PANEL */
+        .summary-panel {
+            position: fixed;
+            top: 72px; /* below navbar */
+            right: -520px; /* hidden by default */
+            height: calc(100% - 92px);
+            width: 38%;
+            max-width: 520px;
+            min-width: 320px;
+            background: linear-gradient(180deg, var(--bg) 0%, #ffffff 100%);
+            border-left: 1px solid var(--border);
+            box-shadow: -24px 0 40px rgba(16, 24, 40, 0.06);
+            border-radius: 12px 0 0 12px;
+            padding: 1rem 1rem 1.5rem 1rem;
+            z-index: 150;
+            transition: right 0.36s cubic-bezier(.2,.9,.2,1), opacity 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            overflow: hidden;
+            opacity: 0;
+        }
+
+        /* panel visible */
+        .summary-panel.open {
+            right: 24px;
+            opacity: 1;
+        }
+
+        /* header */
+        .summary-panel .summary-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-light);
+            padding-bottom: 0.5rem;
+        }
+
+        .summary-panel .summary-title {
+            display:flex;
+            gap:0.6rem;
+            align-items:center;
+        }
+
+        .summary-panel h3 {
+            font-size: 1.05rem;
+            margin: 0;
+            color: var(--accent);
+        }
+
+        .summary-panel .summary-meta {
+            font-size: 0.85rem;
+            color: var(--text-tertiary);
+        }
+
+        /* content */
+        .summary-panel .summary-body {
+            overflow-y: auto;
+            padding: 0.75rem 0;
+            gap: 0.75rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .summary-panel .summary-content {
+            white-space: pre-wrap;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            background: var(--bg-secondary);
+            padding: 1rem;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+
+        /* skeleton */
+        .summary-skeleton {
+            height: 120px;
+            border-radius: 10px;
+            background: linear-gradient(90deg, rgba(0,0,0,0.03) 0%, rgba(0,0,0,0.06) 50%, rgba(0,0,0,0.03) 100%);
+            animation: pulse 1.4s ease-in-out infinite;
+        }
+
+        /* footer actions */
+        .summary-panel .summary-actions {
+            display: flex;
+            gap: 0.6rem;
+            align-items: center;
+            justify-content: space-between;
+            border-top: 1px solid var(--border-light);
+            padding-top: 0.6rem;
+            margin-top: 0.35rem;
+        }
+
+        .summary-panel .summary-actions .left,
+        .summary-panel .summary-actions .right {
+            display: flex;
+            gap: 0.6rem;
+            align-items: center;
+        }
+
+        .summary-panel .btn-ghost {
+            background: transparent;
+            border: 1px solid var(--border);
+            padding: 0.55rem 0.8rem;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .summary-panel .btn-ghost:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* insert into chat button */
+        .summary-panel .btn-insert {
+            background: var(--primary);
+            color: white;
+            padding: 0.55rem 0.8rem;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+        }
+
+        /* close icon */
+        .summary-panel .icon-btn {
+            width: 36px;
+            height: 36px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            border-radius:8px;
+            border:1px solid var(--border);
+            background:var(--bg);
+            cursor:pointer;
+        }
+
+        /* responsive */
+        @media (max-width: 900px) {
+            .summary-panel {
+                width: 100%;
+                max-width: 100%;
+                right: -100%;
+                top: 64px;
+                border-radius: 0;
+            }
+            .summary-panel.open {
+                right: 0;
+            }
+        }
+
+
         /* ALERTS */
         .alert {
             padding: 1rem;
@@ -1126,6 +1280,11 @@
                 <h1>Chat with Your Knowledge Base</h1>
                 <p>Ask questions and get instant answers from your documents</p>
             </div>
+
+            <!-- SUMMARY BUTTON -->
+            <button id="summaryBtn" class="btn btn-secondary" style="margin-left:auto;">
+                Summarize Chat
+            </button>
         </div>
 
         <div class="chat-box">
@@ -1142,6 +1301,48 @@
             </div>
         </div>
     </section>
+    <!-- SUMMARY SIDE PANEL -->
+    <div id="summaryPanel" class="summary-panel" aria-hidden="true">
+        <div class="summary-header">
+            <div class="summary-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <div>
+                    <h3>Conversation Summary</h3>
+                    <div id="summaryMeta" class="summary-meta">No conversation selected</div>
+                </div>
+            </div>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+                <button id="pinSummaryBtn" class="icon-btn" title="Pin (not implemented)">
+                    <!-- pin icon -->
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v7"></path><path d="M8 7h8"></path><path d="M7 21l10-10"></path></svg>
+                </button>
+                <button id="closeSummaryBtn" class="icon-btn" title="Close">
+                    <!-- close -->
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="summary-body">
+            <div id="summaryContentPlaceholder" class="summary-skeleton"></div>
+            <div id="summaryContent" class="summary-content" style="display:none"></div>
+            <div id="summaryError" class="alert alert-error" style="display:none"></div>
+        </div>
+
+        <div class="summary-actions">
+            <div class="left">
+                <button id="copySummaryBtn" class="btn-ghost" title="Copy summary">Copy</button>
+                <button id="downloadSummaryBtn" class="btn-ghost" title="Download .txt">Download</button>
+            </div>
+            <div class="right">
+                <button id="insertSummaryBtn" class="btn-insert">Insert into chat</button>
+            </div>
+        </div>
+    </div>
+
+
 
 </div>
 
@@ -1671,6 +1872,131 @@ async function sendMessage() {
     } finally {
         showLoading(false);
     }
+}
+
+// ===== SUMMARY SIDE PANEL HANDLERS =====
+const summaryBtn = document.getElementById('summaryBtn');
+const summaryPanel = document.getElementById('summaryPanel');
+const summaryContent = document.getElementById('summaryContent');
+const summaryPlaceholder = document.getElementById('summaryContentPlaceholder');
+const summaryMeta = document.getElementById('summaryMeta');
+const summaryError = document.getElementById('summaryError');
+const copySummaryBtn = document.getElementById('copySummaryBtn');
+const downloadSummaryBtn = document.getElementById('downloadSummaryBtn');
+const closeSummaryBtn = document.getElementById('closeSummaryBtn');
+const insertSummaryBtn = document.getElementById('insertSummaryBtn');
+
+summaryBtn?.addEventListener('click', async () => {
+    // If no conversation id, tell user to chat first
+    if (!conversationId) {
+        showToast('Start a conversation first to summarize', 'error');
+        return;
+    }
+    openSummaryPanel();
+    await fetchAndRenderSummary(conversationId);
+});
+
+closeSummaryBtn?.addEventListener('click', closeSummaryPanel);
+
+function openSummaryPanel() {
+    summaryPanel.classList.add('open');
+    summaryPanel.setAttribute('aria-hidden', 'false');
+}
+
+function closeSummaryPanel() {
+    summaryPanel.classList.remove('open');
+    summaryPanel.setAttribute('aria-hidden', 'true');
+    // clear transient UI
+    summaryContent.style.display = 'none';
+    summaryPlaceholder.style.display = 'block';
+    summaryError.style.display = 'none';
+    summaryMeta.textContent = 'Fetching summary...';
+}
+
+async function fetchAndRenderSummary(convId) {
+    summaryContent.style.display = 'none';
+    summaryPlaceholder.style.display = 'block';
+    summaryError.style.display = 'none';
+    summaryMeta.textContent = 'Fetching summary...';
+    summaryContent.textContent = '';
+
+    showLoading(true);
+    try {
+        const res = await fetch(`${API}/api/chat/summary/${encodeURIComponent(convId)}`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to get summary');
+
+        // render
+        const summaryText = (data.summary || '').trim();
+        const total = (data.total_messages !== undefined) ? data.total_messages : (data.total || 'unknown');
+        summaryMeta.textContent = `Conversation ID: ${convId} • ${total} messages`;
+        summaryContent.textContent = summaryText || 'No summary returned.';
+        summaryPlaceholder.style.display = 'none';
+        summaryContent.style.display = 'block';
+    } catch (err) {
+        summaryError.style.display = 'block';
+        summaryError.textContent = `Unable to fetch summary: ${err.message}`;
+        summaryMeta.textContent = 'Summary failed';
+        summaryPlaceholder.style.display = 'none';
+        summaryContent.style.display = 'none';
+    } finally {
+        showLoading(false);
+    }
+}
+
+copySummaryBtn?.addEventListener('click', async () => {
+    const text = summaryContent.textContent || '';
+    if (!text) { showToast('Nothing to copy', 'error'); return; }
+    try {
+        await navigator.clipboard.writeText(text);
+        showToast('Summary copied');
+    } catch (e) {
+        showToast('Copy failed', 'error');
+    }
+});
+
+downloadSummaryBtn?.addEventListener('click', () => {
+    const text = summaryContent.textContent || '';
+    if (!text) { showToast('Nothing to download', 'error'); return; }
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeId = (conversationId || 'summary').replace(/[^a-z0-9_-]/ig, '_');
+    a.download = `conversation_summary_${safeId}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+});
+
+insertSummaryBtn?.addEventListener('click', () => {
+    // insert summary into chat as bot message
+    const text = summaryContent.textContent || '';
+    if (!text) { showToast('No summary to insert', 'error'); return; }
+
+    // create bot-like message bubble
+    const chatWindow = document.getElementById('chatWindow');
+    const botMsg = document.createElement('div');
+    botMsg.className = 'chat-message bot';
+    botMsg.innerHTML = `<div class="message-bubble">${escapeHtml(text)}</div>`;
+    chatWindow.appendChild(botMsg);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+
+    closeSummaryPanel();
+    showToast('Summary inserted into chat');
+});
+
+// small helper to avoid injecting raw HTML
+function escapeHtml(unsafe) {
+    return unsafe
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
 }
 
 // INIT

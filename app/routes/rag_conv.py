@@ -41,6 +41,13 @@ class ConversationHistoryResponse(BaseModel):
     total_exchanges: int
 
 
+class SummaryResponse(BaseModel):
+    conversation_id: str
+    summary: str
+    total_messages: int
+
+
+
 @router.post("/message", response_model=ChatResponse)
 async def send_message(
     request: Request,
@@ -273,6 +280,36 @@ async def clear_conversation(
             detail=f"Failed to clear conversation: {str(e)}"
         )
 
+@router.get("/summary/{conversation_id}", response_model=SummaryResponse)
+async def summarize_conversation(request: Request, conversation_id: str):
+    """
+    Generate a meaningful summary of the entire conversation.
+    """
+    try:
+        user = request.state.user
+        rag_service = get_conversational_rag_service()
+
+        # Get full history
+        history = rag_service.get_conversation_history(conversation_id)
+        if not history:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        # Generate summary
+        summary_text = await rag_service.summarize_conversation(
+            conversation_id=conversation_id
+        )
+
+        return SummaryResponse(
+            conversation_id=conversation_id,
+            summary=summary_text,
+            total_messages=len(history)
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to summarize conversation: {str(e)}"
+        )
 
 @router.post("/quick-answer", response_model=ChatResponse)
 async def quick_answer(
