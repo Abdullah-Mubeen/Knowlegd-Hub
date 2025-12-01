@@ -137,7 +137,7 @@ async def list_images(request: Request):
         db = get_db()
         user = request.state.user
         workspace_id = user["workspace_id"]
-        docs = db.list_documents(workspace_id=workspace_id, document_type="images")
+        docs = db.list_documents(workspace_id=workspace_id, document_type="image")
         return {"documents": docs}
     except Exception as e:
         logger.error(f"Error listing images: {e}")
