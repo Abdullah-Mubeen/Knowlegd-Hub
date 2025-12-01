@@ -28,6 +28,14 @@ class ImageProcessor:
         ))
         self.openai_service = get_openai_service()
         self.pinecone_service = get_pinecone_service()
+        self.db = None  # Lazy load to avoid circular imports
+    
+    def _get_db(self):
+        """Lazy load database service"""
+        if self.db is None:
+            from app.db import get_db
+            self.db = get_db()
+        return self.db
     
     def _get_image_description(self, file_path: str) -> str:
         """Get a brief description of the image for context using Vision API"""
@@ -292,11 +300,14 @@ Be concise and informative."""
         3. Create smart, context-aware chunks
         4. Generate embeddings with text-embedding-3-large
         5. Store in Pinecone with rich metadata
+        6. Store document and chunks in MongoDB
         """
         start_time = time.time()
         
         try:
             logger.info(f"Starting image processing: {filename}")
+            
+            db = self._get_db()
             
             # Step 1: Extract text and get description (Vision API only)
             extracted_text, image_description, image_size, confidence = self.extract_text_from_image(file_path)
@@ -326,6 +337,60 @@ Be concise and informative."""
                 chunks=chunks,
                 namespace=workspace_id
             )
+            
+            # Step 5: Create document record in MongoDB
+            from pathlib import Path
+            file_size = Path(file_path).stat().st_size
+            
+            document_record = db.create_document(
+                document_id=document_id,
+                workspace_id=workspace_id,
+                document_type="image",
+                filename=filename,
+                file_path=file_path,
+                file_size=file_size,
+                total_chunks=len(chunks),
+                file_metadata={
+                    "original_filename": filename,
+                    "image_size": image_size,
+                    "image_description": image_description,
+                    "extraction_method": extraction_method,
+                    "confidence_score": confidence
+                },
+                processing_metadata={
+                    "extracted_text_length": len(extracted_text),
+                    "extraction_method": extraction_method,
+                    "has_ocr": bool(extracted_text)
+                }
+            )
+            
+            logger.info(f"Created document record in MongoDB")
+            
+            # Step 6: Store chunks in MongoDB
+            mongo_chunks = []
+            for i, chunk_data in enumerate(chunks):
+                mongo_chunk = {
+                    "chunk_id": chunk_data["id"],
+                    "document_id": document_id,
+                    "workspace_id": workspace_id,
+                    "text": chunk_data["text"],
+                    "pinecone_id": stored_ids[i],
+                    "metadata": chunk_data["metadata"]
+                }
+                mongo_chunks.append(mongo_chunk)
+            
+            db.create_chunks_batch(mongo_chunks)
+            
+            logger.info(f"Stored {len(mongo_chunks)} chunks in MongoDB")
+            
+            # Step 7: Update user statistics
+            user = db.get_user_by_workspace(workspace_id)
+            if user:
+                db.update_user_stats(
+                    user_id=user["user_id"],
+                    increment_documents=1,
+                    increment_chunks=len(chunks)
+                )
             
             processing_time = time.time() - start_time
             
