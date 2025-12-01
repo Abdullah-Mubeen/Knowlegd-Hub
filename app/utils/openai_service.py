@@ -4,20 +4,28 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from typing import List, Optional, AsyncGenerator
 import logging
 import base64
+import hashlib
+from enum import Enum
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
+class QueryComplexity(Enum):
+    """Query complexity levels for model selection"""
+    SIMPLE = -1      # Use cheap model
+    MODERATE = 0     # Use default model  
+    COMPLEX = 1      # Use premium model
+
+
 class OpenAIService:
     """
     Enhanced OpenAI service with:
-    - Vision API for image text extraction
-    - Streaming support
-    - Better error handling
-    - Batch processing with rate limiting
-    - Improved prompts
+    - Smart model routing (gpt-4o-mini for simple, gpt-4 for complex)
+    - Vision API for images (gpt-4o for best quality)
+    - Embedding caching & deduplication
+    - Streaming support & batch processing
     """
     
     def __init__(self):
@@ -30,7 +38,23 @@ class OpenAIService:
             dimensions=settings.PINECONE_DIMENSION
         )
         
-        # Initialize chat model
+        # Simple query model (cheap: gpt-4o-mini)
+        self.simple_model = ChatOpenAI(
+            model=settings.SIMPLE_QUERY_MODEL,
+            temperature=0.3,  # Lower temp for factual answers
+            max_tokens=500,   # Simple queries need fewer tokens
+            openai_api_key=self.api_key
+        )
+        
+        # Complex query model (powerful: gpt-4)
+        self.complex_model = ChatOpenAI(
+            model=settings.COMPLEX_QUERY_MODEL,
+            temperature=settings.OPENAI_TEMPERATURE,
+            max_tokens=settings.OPENAI_MAX_TOKENS,
+            openai_api_key=self.api_key
+        )
+        
+        # Default chat model (for backward compatibility)
         self.chat_model = ChatOpenAI(
             model=settings.OPENAI_CHAT_MODEL,
             temperature=settings.OPENAI_TEMPERATURE,
@@ -47,7 +71,89 @@ class OpenAIService:
             streaming=True
         )
         
-        logger.info(f"Initialized OpenAI with model: {settings.OPENAI_CHAT_MODEL}")
+        # Embedding cache for deduplication
+        self._embedding_cache: Dict[str, List[float]] = {}
+
+    def _detect_query_complexity(self, text: str) -> QueryComplexity:
+        """
+        Detect if query is simple or complex to route to appropriate model
+        
+        Scoring:
+        - SIMPLE: < threshold (30 words), no complex keywords
+        - MODERATE: medium length or some complexity
+        - COMPLEX: long text, complex keywords (analyze, compare, explain, etc.)
+        """
+        if not text:
+            return QueryComplexity.SIMPLE
+        
+        text_lower = text.lower().strip()
+        word_count = len(text_lower.split())
+        
+        # Parse complex keywords from config
+        complex_keywords = [kw.strip() for kw in settings.COMPLEX_KEYWORDS.split(",")]
+        
+        # Score the query
+        score = 0
+        
+        # Word count score
+        if word_count < settings.SIMPLE_QUERY_THRESHOLD:
+            score -= 1  # Likely simple
+        elif word_count > 60:
+            score += 1  # Likely complex
+        
+        # Check for complex keywords
+        for keyword in complex_keywords:
+            if keyword in text_lower:
+                score += 1
+                break  # One complex keyword is enough
+        
+        # Check for question complexity indicators
+        question_patterns = ["how would you", "can you explain", "tell me why", "what would you recommend"]
+        for pattern in question_patterns:
+            if pattern in text_lower:
+                score += 1
+                break
+        
+        # Determine complexity level
+        if score <= -1:
+            return QueryComplexity.SIMPLE
+        elif score >= 1:
+            return QueryComplexity.COMPLEX
+        else:
+            return QueryComplexity.MODERATE
+    
+    def _get_model_for_query(self, query: str) -> ChatOpenAI:
+        """
+        Select appropriate model based on query complexity
+        """
+        if not settings.ENABLE_SMART_ROUTING:
+            return self.chat_model
+        
+        complexity = self._detect_query_complexity(query)
+        
+        if complexity == QueryComplexity.SIMPLE:
+            logger.debug(f"📝 Simple query detected → using {settings.SIMPLE_QUERY_MODEL}")
+            return self.simple_model
+        elif complexity == QueryComplexity.COMPLEX:
+            logger.debug(f"🧠 Complex query detected → using {settings.COMPLEX_QUERY_MODEL}")
+            return self.complex_model
+        else:
+            logger.debug(f"⚖️ Moderate query detected → using default model")
+            return self.chat_model
+    
+    def _get_text_hash(self, text: str) -> str:
+        """Get SHA256 hash of text for embedding deduplication"""
+        return hashlib.sha256(text.strip().encode()).hexdigest()
+    
+    def _get_cached_embedding(self, text: str) -> Optional[List[float]]:
+        """Get embedding from cache if available"""
+        text_hash = self._get_text_hash(text)
+        return self._embedding_cache.get(text_hash)
+    
+    def _cache_embedding(self, text: str, embedding: List[float]) -> None:
+        """Cache embedding for future use"""
+        text_hash = self._get_text_hash(text)
+        self._embedding_cache[text_hash] = embedding
     
     def generate_embedding(self, text: str) -> List[float]:
         """
@@ -77,14 +183,14 @@ class OpenAIService:
         batch_size: int = 100
     ) -> List[List[float]]:
         """
-        Generate embeddings for multiple texts efficiently with batching
+        Generate embeddings with deduplication cache to avoid duplicate API calls
         
         Args:
             texts: List of texts to embed
             batch_size: Number of texts per batch (avoid rate limits)
             
         Returns:
-            List of embedding vectors
+            List of embedding vectors in same order as input
         """
         try:
             if not texts:
@@ -96,18 +202,42 @@ class OpenAIService:
             if not valid_texts:
                 raise ValueError("No valid texts to embed")
             
-            # Process in batches to avoid rate limits
-            all_embeddings = []
+            # Check cache for all texts first (deduplication)
+            embeddings_map = {}  # hash -> embedding
+            texts_to_embed = []  # texts not in cache
             
-            for i in range(0, len(valid_texts), batch_size):
-                batch = valid_texts[i:i + batch_size]
-                batch_embeddings = self.embeddings.embed_documents(batch)
-                all_embeddings.extend(batch_embeddings)
+            for text in valid_texts:
+                cached = self._get_cached_embedding(text)
+                if cached:
+                    text_hash = self._get_text_hash(text)
+                    embeddings_map[text_hash] = cached
+                    logger.debug(f"✓ Cache hit for embedding")
+                else:
+                    texts_to_embed.append(text)
+            
+            # Only call API for texts not in cache
+            if texts_to_embed:
+                logger.info(f"Cache optimization: {len(texts_to_embed)}/{len(valid_texts)} texts need API call")
                 
-                logger.info(f"Generated batch {i//batch_size + 1}: {len(batch)} embeddings")
+                for i in range(0, len(texts_to_embed), batch_size):
+                    batch = texts_to_embed[i:i + batch_size]
+                    batch_embeddings = self.embeddings.embed_documents(batch)
+                    
+                    for text, embedding in zip(batch, batch_embeddings):
+                        text_hash = self._get_text_hash(text)
+                        embeddings_map[text_hash] = embedding
+                        self._cache_embedding(text, embedding)
+                    
+                    logger.info(f"Generated batch {i//batch_size + 1}: {len(batch)} embeddings")
             
-            logger.info(f"Generated {len(all_embeddings)} total embeddings")
-            return all_embeddings
+            # Reconstruct embeddings in original order
+            result = []
+            for text in valid_texts:
+                text_hash = self._get_text_hash(text)
+                result.append(embeddings_map[text_hash])
+            
+            logger.info(f"Generated {len(result)} total embeddings (with cache optimization)")
+            return result
             
         except Exception as e:
             logger.error(f"Error generating batch embeddings: {str(e)}")
@@ -115,7 +245,8 @@ class OpenAIService:
     
     def extract_text_from_image(self, image_bytes: bytes) -> str:
             """
-            Extract text from image using OpenAI Vision API (GPT-4o for best accuracy)
+            Extract text from image using OpenAI Vision API (GPT-4o for best quality)
+            Optimized: reduced tokens from 4096 to 2500, smart detail mode
             
             Args:
                 image_bytes: Raw image bytes
@@ -130,9 +261,9 @@ class OpenAIService:
                 
                 base64_image = base64.b64encode(image_bytes).decode('utf-8')
                 
-                # Call Vision API with GPT-4o
+                # Keep gpt-4o for best quality, but optimize tokens
                 response = client.chat.completions.create(
-                    model="gpt-4o",  
+                    model="gpt-4o",  # Best quality for images
                     messages=[
                         {
                             "role": "user",
@@ -155,21 +286,21 @@ class OpenAIService:
                                     "type": "image_url",
                                     "image_url": {
                                         "url": f"data:image/jpeg;base64,{base64_image}",
-                                        "detail": "high"  # High detail for best OCR quality
+                                        "detail": "auto"  # Smart detail: 'auto' balances quality vs cost
                                     }
                                 }
                             ]
                         }
                     ],
-                    max_tokens=4096, 
-                    temperature=0.1
+                    max_tokens=2500,  # Reduced from 4096 (saves ~40% tokens)
+                    temperature=0.0  # Deterministic (better for OCR)
                 )
                 
                 extracted_text = response.choices[0].message.content
                 
                 if extracted_text:
                     extracted_text = extracted_text.strip()
-                    logger.info(f"✅ Extracted {len(extracted_text)} characters from image using Vision API")
+                    logger.info(f"✅ Extracted {len(extracted_text)} chars from image [gpt-4o, optimized tokens]")
                 else:
                     logger.warning("⚠️ No text extracted from image")
                     extracted_text = ""
@@ -225,12 +356,12 @@ class OpenAIService:
                             ]
                         }
                     ],
-                    max_tokens=150,
-                    temperature=0.3
+                    max_tokens=100,  # Reduced from 150 (1-2 sentences is enough)
+                    temperature=0.0  # Deterministic
                 )
                 
                 description = response.choices[0].message.content.strip()
-                logger.info(f"Generated image description: {description[:100]}...")
+                logger.info(f"Generated image description [optimized]")
                 return description
                 
             except Exception as e:
@@ -243,7 +374,7 @@ class OpenAIService:
         system_message: Optional[str] = None
     ) -> str:
         """
-        Generate answer using chat model
+        Generate answer using smart model routing based on complexity
         
         Args:
             prompt: User prompt/question
@@ -260,7 +391,9 @@ class OpenAIService:
                 messages.append(SystemMessage(content=system_message))
             messages.append(HumanMessage(content=prompt))
             
-            response = self.chat_model.invoke(messages)
+            # Smart model selection based on query complexity
+            model = self._get_model_for_query(prompt)
+            response = model.invoke(messages)
             answer = response.content
             
             logger.info(f"Generated answer (length={len(answer)})")

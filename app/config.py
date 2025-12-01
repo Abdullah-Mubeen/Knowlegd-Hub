@@ -20,6 +20,16 @@ class Settings(BaseSettings):
     OPENAI_CHAT_MODEL: str = Field(alias="OPENAI_MODEL")
     OPENAI_TEMPERATURE: float = Field(0.7, ge=0.0, le=1.0)
     OPENAI_MAX_TOKENS: int = Field(1000, gt=0)
+    
+    # Smart Model Routing - Cost Optimization
+    ENABLE_SMART_ROUTING: bool = Field(True, description="Enable intelligent model selection")
+    SIMPLE_QUERY_MODEL: str = Field("gpt-4o-mini", description="Fast, cheap model for simple queries")
+    COMPLEX_QUERY_MODEL: str = Field("gpt-4", description="Powerful model for complex queries")
+    SIMPLE_QUERY_THRESHOLD: int = Field(30, description="Max words for simple query classification")
+    COMPLEX_KEYWORDS: str = Field(
+        "analyze,compare,evaluate,explain,why,reasoning,recommend,strategy,plan",
+        description="Comma-separated keywords indicating complex queries"
+    )
 
     # MongoDB
     MONGODB_URI: str = Field(
