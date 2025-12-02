@@ -260,26 +260,38 @@ Rewrite this as a complete, standalone question that includes all necessary cont
         business_context = f" for {business_name}" if business_name else ""
         
         if intent_info.get("is_greeting"):
-            system_message = f"""You are a friendly, helpful business assistant{business_context}.
-Respond warmly to greetings and offer to help with questions about the business."""
-        
+            system_message = f"""
+        You are a warm, friendly, and genuinely helpful assistant{business_context}.
+        When the user greets you, respond with enthusiasm and positive energy.
+        Make them feel welcome, appreciated, and excited to interact with you.
+        Keep it natural—like a real human who loves helping others."""
+            
         elif intent_info.get("is_clarification"):
-            system_message = f"""You are a patient business assistant{business_context}.
-The user is asking for clarification about your previous response. Explain more clearly and provide additional details."""
-        
+            system_message = f"""
+        You are an empathetic, patient, and supportive assistant{business_context}.
+        The user is asking for clarification, so slow down, simplify, and explain things clearly.
+        Break complex ideas into easy, digestible parts.
+        Encourage the user, validate their confusion, and make them feel completely understood."""
+            
         else:
-            system_message = f"""You are an intelligent conversational assistant{business_context}.
-Your role is to have natural conversations while providing accurate information from business documents.
+            system_message = f"""
+        You are a warm, knowledgeable, and highly adaptive assistant{business_context}.
+        Your goal is to have natural, human-like conversations while giving accurate, context-aware answers.
 
-Guidelines:
-- Use a conversational, friendly tone
-- Maintain context from previous messages
-- Answer based on the provided sources
-- Use inline citations [1], [2] for facts
-- If information isn't in sources, say so clearly
-- For comparisons, structure the answer clearly
-- For procedural questions, provide step-by-step guidance
-- Keep responses focused but complete"""
+        Core Guidelines:
+        - Sound human: natural, conversational, and approachable
+        - Adapt your tone to the user's industry and business context
+        - Show genuine interest and emotional intelligence
+        - Maintain context throughout the conversation
+        - Ground your answers in the data provided to you
+        - Use citations like [1], [2] only when needed and do so naturally
+        - If you lack information, be honest and guide the user helpfully
+        - Keep step-by-step explanations simple and easy to follow
+        - Ask clarifying questions when something is unclear
+        - Stay positive, encouraging, and solution-oriented
+
+        Your mission is to feel like a real expert support agent built specifically for their business—smart, friendly, and truly helpful."""
+
         
         # Build prompt
         prompt_parts = []
@@ -291,7 +303,7 @@ Guidelines:
             prompt_parts.append(f"Relevant Information:\n{context}\n")
         
         prompt_parts.append(f"User: {message}\n")
-        prompt_parts.append("Assistant: Provide a natural, conversational response with citations [1], [2]:")
+        prompt_parts.append("Assistant: Share your response in a natural, conversational way. Be helpful, warm, and genuine. Include citations where relevant:")
         
         prompt = "\n".join(prompt_parts)
         
@@ -306,8 +318,14 @@ Guidelines:
     
     def _handle_greeting(self, business_name: Optional[str]) -> str:
         """Generate greeting response"""
-        business_context = f" at {business_name}" if business_name else ""
-        return f"Hello! I'm your AI assistant{business_context}. I can help answer questions about our services, policies, and documentation. What would you like to know?"
+        business_context = f" from {business_name}" if business_name else ""
+        greetings = [
+            f"Hey there! 👋 Welcome{business_context}. I'm here to help you find exactly what you're looking for. Whether you have questions about our services, policies, or anything else—just ask away!",
+            f"Hi! 😊 Great to see you{business_context}. I'm your go-to assistant for all your questions. Feel free to ask about anything, and I'll do my best to help!",
+            f"Welcome{business_context}! 🙌 I'm thrilled to help you out. Got questions? I've got answers! What can I assist you with today?"
+        ]
+        import random
+        return random.choice(greetings)
     
     def _handle_clarification(
         self,
@@ -317,7 +335,7 @@ Guidelines:
     ) -> str:
         """Handle clarification requests"""
         if not conversation_history:
-            return "I'd be happy to clarify, but I don't see a previous conversation. Could you ask your question?"
+            return "Of course! I'd love to help clarify things. Let me know what you'd like to understand better, and I'll break it down for you. 😊"
         
         # Get last assistant message
         last_assistant = None
@@ -327,17 +345,24 @@ Guidelines:
                 break
         
         if not last_assistant:
-            return "I'd be happy to clarify. What specifically would you like me to explain?"
+            return "You know what, I totally understand if something wasn't clear. Let me explain it in a different way that makes more sense! What part would you like me to dive deeper into?"
         
-        prompt = f"""The user is asking for clarification about this previous response:
+        prompt = f"""The user is asking you to clarify something from your previous response. They want a clearer, more understandable explanation.
 
-Previous Response: {last_assistant}
+Your previous response was:
+{last_assistant}
 
-User's Clarification Request: {message}
+Their clarification request:
+{message}
 
-Provide a clearer, more detailed explanation:"""
+Explain this more clearly and in an easy-to-understand way. Use examples if it helps. Make it conversational and friendly:"""
         
-        system_message = f"""You are a helpful assistant. Explain things clearly and provide examples when helpful."""
+        system_message = f"""You are a patient, friendly assistant who genuinely cares about helping people understand. 
+- Explain complex things simply
+- Use helpful analogies and examples
+- Be warm and encouraging
+- Show empathy if something was confusing
+- Break down information into easy steps"""
         
         return self.openai_service.generate_answer(prompt, system_message)
     

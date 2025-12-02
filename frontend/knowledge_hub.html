@@ -1092,6 +1092,236 @@
                 max-width: 100%;
             }
         }
+
+        /* ===== MARKDOWN STYLES ===== */
+        .markdown-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        /* Headings */
+        .markdown-content h1,
+        .markdown-content h2,
+        .markdown-content h3,
+        .markdown-content h4,
+        .markdown-content h5,
+        .markdown-content h6 {
+            font-weight: 700;
+            margin: 0.75rem 0 0.5rem 0;
+            line-height: 1.3;
+            color: var(--accent);
+        }
+
+        .markdown-content h1 {
+            font-size: 1.5rem;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 0.5rem;
+        }
+
+        .markdown-content h2 {
+            font-size: 1.3rem;
+            border-bottom: 1px solid var(--border-light);
+            padding-bottom: 0.35rem;
+        }
+
+        .markdown-content h3 {
+            font-size: 1.15rem;
+        }
+
+        .markdown-content h4 {
+            font-size: 1rem;
+        }
+
+        .markdown-content h5,
+        .markdown-content h6 {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+        }
+
+        /* Paragraphs */
+        .markdown-content p {
+            margin: 0.5rem 0;
+            line-height: 1.6;
+        }
+
+        /* Lists */
+        .markdown-content ul,
+        .markdown-content ol {
+            margin: 0.75rem 0;
+            padding-left: 1.5rem;
+        }
+
+        .markdown-content li {
+            margin: 0.35rem 0;
+            line-height: 1.6;
+        }
+
+        .markdown-content ul li:before {
+            content: "▸ ";
+            color: var(--accent);
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+
+        .markdown-content ol {
+            list-style-type: decimal;
+            padding-left: 1.75rem;
+        }
+
+        .markdown-content ol li {
+            color: var(--text);
+        }
+
+        /* Bold & Italic */
+        .markdown-content strong,
+        .markdown-content b {
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .markdown-content em,
+        .markdown-content i {
+            font-style: italic;
+            color: var(--text-secondary);
+        }
+
+        /* Code inline */
+        .markdown-content code {
+            background: var(--bg-tertiary);
+            color: var(--accent);
+            padding: 0.2rem 0.45rem;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        /* Code blocks */
+        .markdown-content pre {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            overflow-x: auto;
+            margin: 0.75rem 0;
+        }
+
+        .markdown-content pre code {
+            background: none;
+            color: var(--text);
+            padding: 0;
+            border-radius: 0;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            font-weight: 400;
+        }
+
+        /* Blockquotes */
+        .markdown-content blockquote {
+            border-left: 4px solid var(--accent);
+            background: rgba(26, 26, 26, 0.03);
+            padding: 0.75rem 1rem;
+            margin: 0.75rem 0;
+            border-radius: 4px;
+            font-style: italic;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .markdown-content blockquote p {
+            margin: 0;
+        }
+
+        /* Horizontal rule */
+        .markdown-content hr {
+            border: none;
+            border-top: 2px solid var(--border);
+            margin: 1rem 0;
+        }
+
+        /* Links */
+        .markdown-content a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+            border-bottom: 1px solid transparent;
+            transition: border-color 0.2s ease;
+        }
+
+        .markdown-content a:hover {
+            border-bottom-color: var(--accent);
+        }
+
+        /* Tables */
+        .markdown-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0.75rem 0;
+            font-size: 0.9rem;
+        }
+
+        .markdown-content table th {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .markdown-content table td {
+            border: 1px solid var(--border-light);
+            padding: 0.75rem;
+        }
+
+        .markdown-content table tr:hover {
+            background: var(--bg-secondary);
+        }
+
+        /* Strikethrough */
+        .markdown-content del {
+            text-decoration: line-through;
+            color: var(--text-tertiary);
+        }
+
+        /* Nested lists */
+        .markdown-content ul ul,
+        .markdown-content ul ol,
+        .markdown-content ol ul,
+        .markdown-content ol ol {
+            margin: 0.35rem 0 0.35rem 1rem;
+        }
+
+        /* Images */
+        .markdown-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            margin: 0.75rem 0;
+        }
+
+        /* Improved message bubble styling for markdown */
+        .message-bubble {
+            overflow-x: hidden;
+        }
+
+        .chat-message.bot .message-bubble .markdown-content {
+            gap: 0.35rem;
+        }
+
+        /* Syntax highlighting for code blocks (optional enhancement) */
+        .markdown-content .hljs {
+            background: var(--bg-tertiary) !important;
+        }
+
+        /* Better spacing for checkboxes if markdown contains task lists */
+        .markdown-content input[type="checkbox"] {
+            margin-right: 0.5rem;
+            cursor: pointer;
+            accent-color: var(--accent);
+        }
     </style>
 </head>
 <body>
@@ -2023,7 +2253,7 @@ async function sendMessage() {
     const chatWindow = document.getElementById('chatWindow');
     const userMsg = document.createElement('div');
     userMsg.className = 'chat-message user';
-    userMsg.innerHTML = `<div class="message-bubble">${msg}</div>`;
+    userMsg.innerHTML = `<div class="message-bubble">${escapeHtml(msg)}</div>`;
     chatWindow.appendChild(userMsg);
     chatWindow.scrollTop = chatWindow.scrollHeight;
     
@@ -2048,13 +2278,14 @@ async function sendMessage() {
         conversationId = data.conversation_id;
         const botMsg = document.createElement('div');
         botMsg.className = 'chat-message bot';
-        botMsg.innerHTML = `<div class="message-bubble">${data.answer}</div>`;
+        // Render answer as markdown with enhanced formatting
+        botMsg.innerHTML = `<div class="message-bubble">${renderMarkdown(data.answer)}</div>`;
         chatWindow.appendChild(botMsg);
         chatWindow.scrollTop = chatWindow.scrollHeight;
     } catch (err) {
         const errMsg = document.createElement('div');
         errMsg.className = 'chat-message bot';
-        errMsg.innerHTML = `<div class="message-bubble">Error: ${err.message}</div>`;
+        errMsg.innerHTML = `<div class="message-bubble"><p><strong>Error:</strong> ${escapeHtml(err.message)}</p></div>`;
         chatWindow.appendChild(errMsg);
     } finally {
         showLoading(false);
@@ -2105,7 +2336,7 @@ async function fetchAndRenderSummary(convId) {
     summaryPlaceholder.style.display = 'block';
     summaryError.style.display = 'none';
     summaryMeta.textContent = 'Fetching summary...';
-    summaryContent.textContent = '';
+    summaryContent.innerHTML = '';
 
     showLoading(true);
     try {
@@ -2115,11 +2346,18 @@ async function fetchAndRenderSummary(convId) {
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Failed to get summary');
 
-        // render
+        // render with markdown support
         const summaryText = (data.summary || '').trim();
         const total = (data.total_messages !== undefined) ? data.total_messages : (data.total || 'unknown');
         summaryMeta.textContent = `Conversation ID: ${convId} • ${total} messages`;
-        summaryContent.textContent = summaryText || 'No summary returned.';
+        
+        // Render summary as markdown for rich formatting
+        if (summaryText) {
+            summaryContent.innerHTML = renderMarkdown(summaryText);
+        } else {
+            summaryContent.innerHTML = '<p><em>No summary returned.</em></p>';
+        }
+        
         summaryPlaceholder.style.display = 'none';
         summaryContent.style.display = 'block';
     } catch (err) {
@@ -2133,19 +2371,41 @@ async function fetchAndRenderSummary(convId) {
     }
 }
 
+/**
+ * Extract plain text from markdown content HTML
+ */
+function getTextFromMarkdownContent() {
+    if (!summaryContent.innerHTML) return '';
+    
+    // Create a temporary div to parse HTML
+    const temp = document.createElement('div');
+    temp.innerHTML = summaryContent.innerHTML;
+    
+    // Extract text from markdown content
+    let text = '';
+    const elements = temp.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6, blockquote, code, pre');
+    elements.forEach(el => {
+        if (el.textContent.trim()) {
+            text += el.textContent.trim() + '\n';
+        }
+    });
+    
+    return text.trim() || summaryContent.textContent || '';
+}
+
 copySummaryBtn?.addEventListener('click', async () => {
-    const text = summaryContent.textContent || '';
+    const text = getTextFromMarkdownContent();
     if (!text) { showToast('Nothing to copy', 'error'); return; }
     try {
         await navigator.clipboard.writeText(text);
-        showToast('Summary copied');
+        showToast('Summary copied ✓');
     } catch (e) {
         showToast('Copy failed', 'error');
     }
 });
 
 downloadSummaryBtn?.addEventListener('click', () => {
-    const text = summaryContent.textContent || '';
+    const text = getTextFromMarkdownContent();
     if (!text) { showToast('Nothing to download', 'error'); return; }
     const blob = new Blob([text], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -2157,23 +2417,24 @@ downloadSummaryBtn?.addEventListener('click', () => {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+    showToast('Summary downloaded ✓');
 });
 
 insertSummaryBtn?.addEventListener('click', () => {
     // insert summary into chat as bot message
-    const text = summaryContent.textContent || '';
+    const text = getTextFromMarkdownContent();
     if (!text) { showToast('No summary to insert', 'error'); return; }
 
-    // create bot-like message bubble
+    // create bot-like message bubble with markdown
     const chatWindow = document.getElementById('chatWindow');
     const botMsg = document.createElement('div');
     botMsg.className = 'chat-message bot';
-    botMsg.innerHTML = `<div class="message-bubble">${escapeHtml(text)}</div>`;
+    botMsg.innerHTML = `<div class="message-bubble">${renderMarkdown(text)}</div>`;
     chatWindow.appendChild(botMsg);
     chatWindow.scrollTop = chatWindow.scrollHeight;
 
     closeSummaryPanel();
-    showToast('Summary inserted into chat');
+    showToast('Summary inserted into chat ✓');
 });
 
 // small helper to avoid injecting raw HTML
@@ -2186,12 +2447,77 @@ function escapeHtml(unsafe) {
          .replace(/'/g, "&#039;");
 }
 
+// ===== MARKDOWN RENDERING =====
+let markdownReady = false;
+
+/**
+ * Initialize marked when library loads
+ */
+function initializeMarkdown() {
+    if (typeof marked === 'undefined') {
+        console.warn('marked.js not loaded yet');
+        return;
+    }
+    
+    marked.setOptions({
+        breaks: true,
+        gfm: true,
+    });
+
+    const renderer = new marked.Renderer();
+    renderer.heading = ({ text, depth }) => `<h${depth}>${text}</h${depth}>`;
+    renderer.list = ({ items, ordered }) => {
+        const tag = ordered ? 'ol' : 'ul';
+        const content = items.map(item => `<li>${item.text}</li>`).join('');
+        return `<${tag}>${content}</${tag}>`;
+    };
+    renderer.blockquote = ({ text }) => `<blockquote>${text}</blockquote>`;
+    renderer.codespan = (code) => `<code>${escapeHtml(code)}</code>`;
+    renderer.code = ({ text, lang }) => `<pre><code class="language-${lang || 'plain'}">${escapeHtml(text)}</code></pre>`;
+    renderer.table = ({ header, rows }) => `<table><thead>${header}</thead><tbody>${rows}</tbody></table>`;
+    marked.setOptions({ renderer });
+    markdownReady = true;
+}
+
+/**
+ * Render markdown to HTML with safe sanitization
+ */
+function renderMarkdown(markdown) {
+    if (!markdownReady) {
+        initializeMarkdown();
+    }
+    
+    if (typeof marked === 'undefined') {
+        return `<div class="markdown-content"><p>${escapeHtml(markdown)}</p></div>`;
+    }
+    
+    try {
+        const html = marked.parse(markdown);
+        return `<div class="markdown-content">${html}</div>`;
+    } catch (error) {
+        console.error('Markdown parsing error:', error);
+        return `<div class="markdown-content"><p>${escapeHtml(markdown)}</p></div>`;
+    }
+}
+
 // INIT
 if (authToken && currentUser) {
     document.getElementById('authSection').classList.remove('active');
     document.getElementById('navActions').style.display = 'flex';
     switchView('dashboard');
 }
+
+// Load markdown library asynchronously to avoid blocking page
+const script = document.createElement('script');
+script.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
+script.async = true;
+script.onload = () => {
+    initializeMarkdown();
+};
+script.onerror = () => {
+    console.warn('Failed to load marked.js - markdown formatting will be disabled');
+};
+document.head.appendChild(script);
 </script>
 
 </body>
